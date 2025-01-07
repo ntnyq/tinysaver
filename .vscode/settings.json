@@ -28,7 +28,10 @@
     "codecov",
     "esbuild",
     "lcov",
+    "noopener",
     "pnpm",
+    "tsdown",
+    "unrs",
     "vite",
     "vitest"
   ],

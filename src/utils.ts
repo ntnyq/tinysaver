@@ -1,5 +1,4 @@
 import { isObject, isUndefined, warnOnce } from '@ntnyq/utils'
-import type { SaveAsOptions } from './types'
 
 export const RE_XML_OR_TEXT =
   /^\s*(?:text\/[^\s;]*|application\/xml|[^\s/]+\/[^\s;]*\+xml)\s*;\s*charset\s*=\s*utf-8/i
@@ -8,7 +7,7 @@ export function shouldPrependBOM(type: string) {
   return RE_XML_OR_TEXT.test(type)
 }
 
-export function prependBOM(blob: Blob, options?: SaveAsOptions) {
+export function prependBOM(blob: Blob, options?: any) {
   if (isUndefined(options)) {
     options = { autoBom: false }
   } else if (!isObject(options)) {
@@ -77,7 +76,9 @@ export function dispatchClick(node: Element) {
 }
 
 export function isMacOSWebview() {
-  if (!globalThis.navigator) return false
+  if (!globalThis.navigator) {
+    return false
+  }
   const userAgent = globalThis.navigator.userAgent
   return (
     /Macintosh/.test(userAgent)

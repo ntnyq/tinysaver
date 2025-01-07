@@ -7,6 +7,9 @@
 
 Modern replacement of file-saver.js.
 
+> [!IMPORTANT]
+> Status: Work in progress.
+
 ## Install
 
 ```shell
