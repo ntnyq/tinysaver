@@ -1,0 +1,69 @@
+{
+  "name": "tinysaver",
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.6.5",
+  "description": "Modern replacement of file-saver.js.",
+  "keywords": [
+    "download",
+    "file",
+    "file-saver",
+    "save-as"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "ntnyq",
+    "email": "ntnyq13@gmail.com"
+  },
+  "homepage": "https://github.com/ntnyq/tinysaver#readme",
+  "repository": "ntnyq/tinysaver",
+  "bugs": {
+    "url": "https://github.com/ntnyq/tinysaver/issues"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "unbuild",
+    "dev": "unbuild --watch",
+    "lint": "eslint",
+    "prepare": "husky",
+    "prepublishOnly": "pnpm run build",
+    "release": "run-s release:check release:version release:publish",
+    "release:check": "run-s lint typecheck test",
+    "release:publish": "pnpm publish",
+    "release:version": "bumpp",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ntnyq/utils": "^0.6.2"
+  },
+  "devDependencies": {
+    "@ntnyq/eslint-config": "^4.0.2",
+    "@ntnyq/prettier-config": "^2.0.0",
+    "@types/node": "^22.13.13",
+    "bumpp": "^10.1.0",
+    "eslint": "^9.23.0",
+    "husky": "^9.1.7",
+    "nano-staged": "^0.8.0",
+    "npm-run-all2": "^7.0.2",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "unbuild": "^3.5.0",
+    "vitest": "^3.0.9"
+  },
+  "nano-staged": {
+    "*.{js,ts,mjs,cjs,md,yml,yaml,json}": "eslint --fix"
+  }
+}
