@@ -1,17 +1,10 @@
 {
+  "extends": "@ntnyq/tsconfig/strict.json",
   "compilerOptions": {
     "target": "ESNext",
-    "lib": ["DOM", "ES2022"],
+    "lib": ["DOM", "ES2023"],
     "module": "ESNext",
-    "moduleResolution": "Bundler",
     "types": [],
-    "resolveJsonModule": true,
-    "erasableSyntaxOnly": true,
-    "libReplacement": false,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-    "esModuleInterop": true,
-    "strict": true,
     "skipLibCheck": true
   }
 }

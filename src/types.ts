@@ -4,7 +4,7 @@ export interface AutoBomOptions {
    *
    * @default true
    */
-  autoBom?: boolean
+  autoBom?: boolean | undefined
 }
 
 export interface SaveAsOptions extends AutoBomOptions {
