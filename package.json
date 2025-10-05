@@ -2,7 +2,7 @@
   "name": "tinysaver",
   "type": "module",
   "version": "0.0.0",
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.17.1",
   "description": "Modern replacement of file-saver.js.",
   "keywords": [
     "download",
@@ -47,18 +47,18 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@ntnyq/eslint-config": "^5.1.0",
+    "@ntnyq/eslint-config": "^5.6.0",
     "@ntnyq/prettier-config": "^3.0.1",
-    "@ntnyq/utils": "^0.8.1",
-    "@types/node": "^24.0.15",
-    "bumpp": "^10.2.0",
-    "eslint": "^9.31.0",
+    "@ntnyq/utils": "^0.9.2",
+    "@types/node": "^24.5.2",
+    "bumpp": "^10.2.3",
+    "eslint": "^9.36.0",
     "husky": "^9.1.7",
     "nano-staged": "^0.8.0",
     "npm-run-all2": "^8.0.4",
     "prettier": "^3.6.2",
-    "tsdown": "^0.12.9",
-    "typescript": "^5.8.3",
+    "tsdown": "^0.15.5",
+    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
   "nano-staged": {
