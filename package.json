@@ -1,7 +1,7 @@
 {
   "name": "tinysaver",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@10.28.0",
   "description": "Modern replacement of file-saver.js.",
   "keywords": [
