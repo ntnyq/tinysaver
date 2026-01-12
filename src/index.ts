@@ -1,2 +1,5 @@
 export * from './core'
-export * from './extensions'
+export * from './types'
+
+export * from './FileDownloader'
+export * from './BrowserDetector'

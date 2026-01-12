@@ -1,75 +1,52 @@
-import { isString } from '@ntnyq/utils'
-import type { SaveAsOptions } from './types'
+import { FileDownloader } from './FileDownloader'
+import type { DownloadOptions } from './types'
 
-const RE_BOM_EXTENSION =
-  // eslint-disable-next-line regexp/no-super-linear-backtracking
-  /^\s*(?:text\/\S*|application\/json|[^\s/]*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i
+// Singleton instance
+export const downloader = new FileDownloader()
 
 /**
- * @param data - data to save
- * @param filename - filename
- * @param options - options
+ * Save a file - Compatible with FileSaver.js saveAs API
+ * @param blob - Blob object or URL string
+ * @param filename - Name of the file to save
+ * @param options - Download options
  */
 export function saveAs(
-  data: string | Blob | File,
+  blob: string | Blob,
+  filename?: string,
+  options?: DownloadOptions,
+): void {
+  downloader.save(blob, filename, options)
+}
+
+/**
+ * Save text content as a file
+ */
+export function saveText(
+  text: string,
   filename: string,
-  options: SaveAsOptions = {},
-) {
-  const {
-    //
-    autoBom = true,
-    type = '',
-    lastModified = Date.now(),
-  } = options
+  options?: Omit<DownloadOptions, 'autoBom'> & { mimeType?: string },
+): void {
+  downloader.saveText(text, filename, options)
+}
 
-  if (isString(data)) {
-    if (autoBom && RE_BOM_EXTENSION.test(type)) {
-      data = `\uFEFF${data}`
-    }
+/**
+ * Save JSON data as a file
+ */
+export function saveJSON(
+  data: any,
+  filename: string,
+  options?: DownloadOptions & { space?: number },
+): void {
+  downloader.saveJSON(data, filename, options)
+}
 
-    data = new Blob([data], { type })
-  }
-
-  let blob: Blob | File = data as Blob | File
-
-  if (!(blob instanceof File)) {
-    blob = new File([blob], filename, {
-      type: type || blob.type || '',
-      lastModified,
-    })
-  }
-
-  if ('msSaveOrOpenBlob' in navigator) {
-    // Edge & IE10-11
-    return (navigator as any).msSaveOrOpenBlob(blob, filename)
-  }
-
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.style.display = 'none'
-  a.href = url
-  a.download = filename
-  a.rel = 'noopener'
-
-  // 处理点击事件
-  const clickHandler = () => {
-    setTimeout(() => {
-      URL.revokeObjectURL(url)
-      a.removeEventListener('click', clickHandler)
-      a.remove()
-    }, 100)
-  }
-
-  a.addEventListener('click', clickHandler, false)
-
-  // 触发下载
-  document.body.append(a)
-  a.click()
-
-  if (/Version\/\d.*Safari/.test(navigator.userAgent)) {
-    const timeout = setTimeout(() => {
-      a.remove()
-      clearTimeout(timeout)
-    }, 1000)
-  }
+/**
+ * Save canvas as an image file
+ */
+export function saveCanvas(
+  canvas: HTMLCanvasElement,
+  filename: string,
+  options?: DownloadOptions & { quality?: number; type?: string },
+): void {
+  downloader.saveCanvas(canvas, filename, options)
 }
