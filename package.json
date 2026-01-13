@@ -40,9 +40,10 @@
     "prepare": "husky",
     "prepublishOnly": "pnpm run build",
     "release": "run-s release:check release:version",
-    "release:check": "run-s lint typecheck test",
+    "release:check": "run-s lint typecheck test test:e2e",
     "release:version": "bumpp",
     "test": "vitest",
+    "test:e2e": "vitest --config vitest.config.e2e.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -50,16 +51,19 @@
     "@ntnyq/prettier-config": "^3.0.1",
     "@ntnyq/tsconfig": "^3.1.0",
     "@ntnyq/utils": "^0.11.0",
+    "@vitest/browser": "^4.0.17",
+    "@vitest/browser-playwright": "^4.0.17",
     "bumpp": "^10.3.2",
     "eslint": "^9.39.2",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "nano-staged": "^0.9.0",
     "npm-run-all2": "^8.0.4",
+    "playwright": "^1.57.0",
     "prettier": "^3.7.4",
     "tsdown": "^0.19.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   },
   "nano-staged": {
     "*.{js,ts,mjs,cjs,md,yml,yaml,toml,json}": "eslint --fix"
