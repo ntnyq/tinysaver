@@ -10,7 +10,7 @@ The e2e tests run in real browsers (Chromium, Firefox, WebKit) to ensure the lib
 
 ### Prerequisites
 
-- Node.js 16+
+- Node.js 20+
 - pnpm (or npm/yarn)
 - Playwright browsers installed
 
