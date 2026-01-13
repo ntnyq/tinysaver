@@ -10,3 +10,8 @@ coverage
 lib-cov
 
 *.tsbuildinfo
+
+# Playwright
+test-results
+playwright-report
+.playwright
