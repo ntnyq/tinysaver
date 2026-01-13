@@ -396,7 +396,7 @@ describe('E2E: Cross-browser compatibility', () => {
 
     // They should be mutually exclusive in most cases
     // Modern browsers have download support, IE has msSaveBlob
-    expect(hasDownload || hasMsSave).toBeDefined()
+    expect(hasDownload || hasMsSave).toBe(true)
   })
 })
 
@@ -424,7 +424,7 @@ describe('E2E: Lifecycle callbacks', () => {
     })
   })
 
-  test('should handle multiple sequential saves', async () => {
+  test('should handle multiple parallel saves', async () => {
     const promises = []
 
     for (let i = 0; i < 3; i++) {
