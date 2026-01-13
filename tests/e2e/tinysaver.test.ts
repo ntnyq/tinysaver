@@ -115,9 +115,7 @@ describe('E2E: saveText functionality', () => {
   })
 
   test('should save multi-line text', async () => {
-    const multiLineText = `Line 1
-Line 2
-Line 3`
+    const multiLineText = 'Line 1\nLine 2\nLine 3'
     let completed = false
 
     return new Promise<void>(resolve => {
@@ -317,7 +315,7 @@ describe('E2E: Error handling', () => {
   test('should handle canvas conversion error gracefully', async () => {
     // Create a mock canvas that fails to convert
     const badCanvas = {
-      toBlob: (callback: BlobCallback) => {
+      toBlob: (callback: (blob: Blob | null) => void) => {
         // Simulate conversion failure
         callback(null)
       },
