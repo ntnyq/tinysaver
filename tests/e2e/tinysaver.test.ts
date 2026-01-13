@@ -70,7 +70,7 @@ describe('E2E: saveAs with Blob', () => {
         disableClick: true,
         autoBom: true,
         onStart: () => {
-          expect(true).toBe(true)
+          expect(blob).toBeInstanceOf(Blob)
         },
         onComplete: () => {
           completed = true
@@ -294,6 +294,17 @@ describe('E2E: saveCanvas functionality', () => {
   })
 
   test('should save canvas as WebP', async () => {
+    // WebP support check - skip if not supported
+    const testCanvas = document.createElement('canvas')
+    const supportsWebP =
+      typeof testCanvas.toBlob === 'function'
+      && testCanvas.toDataURL('image/webp').startsWith('data:image/webp')
+
+    if (!supportsWebP) {
+      console.warn('WebP format not supported in this browser, skipping test')
+      return
+    }
+
     let completed = false
 
     return new Promise<void>(resolve => {
@@ -343,7 +354,7 @@ describe('E2E: Error handling', () => {
 
     expect(errorReceived).toBe(true)
     expect(errorInstance).toBeInstanceOf(Error)
-    expect(errorInstance?.message).toContain('Failed to convert canvas to blob')
+    expect(errorInstance!.message).toContain('Failed to convert canvas to blob')
   })
 })
 

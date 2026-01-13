@@ -30,11 +30,11 @@ npx playwright install-deps
 ## Running Tests
 
 ```bash
-# Run e2e tests (all browsers configured in vitest.config.e2e.ts)
+# Run e2e tests (browsers configured in vitest.config.e2e.ts)
 pnpm test:e2e
 
-# Run e2e tests in specific browser (edit vitest.config.e2e.ts to select)
-pnpm test:e2e
+# To run tests in a specific browser, update vitest.config.e2e.ts (e.g. select only chromium)
+# and rerun the command above.
 ```
 
 ## Test Configuration
