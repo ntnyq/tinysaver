@@ -1,3 +1,4 @@
+import { isString } from '@ntnyq/utils'
 import { BrowserDetector } from './BrowserDetector'
 import type { DownloadOptions } from './types'
 
@@ -36,13 +37,11 @@ export class FileDownloader {
    */
   private addBom(blob: Blob, options: DownloadOptions): Blob {
     if (
-      options.autoBom
-      // eslint-disable-next-line regexp/no-super-linear-backtracking
-      && /^\s*(?:text\/\S*|application\/xml|[^\s/]*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(
+      options.autoBom &&
+      /^\s*(?:text\/\S*|application\/xml|[^\s/]*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(
         blob.type,
       )
     ) {
-      // eslint-disable-next-line unicorn/number-literal-case
       return new Blob([String.fromCodePoint(0xfeff), blob], { type: blob.type })
     }
     return blob
@@ -121,14 +120,12 @@ export class FileDownloader {
       xhr.open('GET', url, true)
       xhr.responseType = 'blob'
 
-      // eslint-disable-next-line unicorn/prefer-add-event-listener
       xhr.onprogress = event => {
         if (options.onProgress && event.lengthComputable) {
           options.onProgress(event.loaded, event.total)
         }
       }
 
-      // eslint-disable-next-line unicorn/prefer-add-event-listener
       xhr.onload = () => {
         if (xhr.status === 200) {
           const blob = xhr.response
@@ -139,7 +136,6 @@ export class FileDownloader {
         }
       }
 
-      // eslint-disable-next-line unicorn/prefer-add-event-listener
       xhr.onerror = () => {
         reject(new Error('Network error occurred during download'))
       }
@@ -166,7 +162,7 @@ export class FileDownloader {
       a.target = '_blank'
     }
 
-    if (typeof blob === 'string') {
+    if (isString(blob)) {
       // URL to file
       a.href = blob
 
@@ -215,7 +211,7 @@ export class FileDownloader {
     name: string,
     options: DownloadOptions,
   ) {
-    if (typeof blob === 'string') {
+    if (isString(blob)) {
       this.handleRemoteUrl(blob, name, options).catch(err => {
         options.onError?.(err as Error)
       })
@@ -239,7 +235,7 @@ export class FileDownloader {
     name: string,
     options: DownloadOptions,
   ) {
-    if (typeof blob === 'string') {
+    if (isString(blob)) {
       this.handleRemoteUrl(blob, name, options).catch(err => {
         options.onError?.(err as Error)
       })
@@ -255,10 +251,10 @@ export class FileDownloader {
 
     const force = blob.type === 'application/octet-stream'
     const needFileReader =
-      (this.detector.isChromeIOS
-        || (force && this.detector.isSafari)
-        || this.detector.isMacOSWebViews)
-      && typeof FileReader !== 'undefined'
+      (this.detector.isChromeIOS ||
+        (force && this.detector.isSafari) ||
+        this.detector.isMacOSWebViews) &&
+      typeof FileReader !== 'undefined'
 
     if (needFileReader) {
       const reader = new FileReader()
@@ -276,7 +272,6 @@ export class FileDownloader {
         options.onComplete?.()
       }
 
-      // eslint-disable-next-line unicorn/prefer-add-event-listener
       reader.onload = () => {
         const error = new Error('Failed to read file')
         options.onError?.(error)
@@ -310,13 +305,11 @@ export class FileDownloader {
     options: DownloadOptions,
   ): void {
     const finalName =
-      name
-      || (blob instanceof Blob
-      && 'name' in blob
-      && typeof blob.name === 'string'
+      name ||
+      (blob instanceof Blob && 'name' in blob && isString(blob.name)
         ? blob.name
-        : '')
-      || this.DEFAULT_FILENAME
+        : '') ||
+      this.DEFAULT_FILENAME
 
     try {
       options.onStart?.()

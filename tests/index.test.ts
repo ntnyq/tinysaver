@@ -6,9 +6,7 @@ import { saveAs, saveCanvas, saveJSON, saveText } from '../src/index'
 const readBlobAsArrayBuffer = (blob: Blob) =>
   new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader()
-    // eslint-disable-next-line unicorn/prefer-add-event-listener
     reader.onload = () => resolve(reader.result as ArrayBuffer)
-    // eslint-disable-next-line unicorn/prefer-add-event-listener
     reader.onerror = () => reject(reader.error)
     reader.readAsArrayBuffer(blob)
   })
@@ -16,9 +14,7 @@ const readBlobAsArrayBuffer = (blob: Blob) =>
 const readBlobAsText = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    // eslint-disable-next-line unicorn/prefer-add-event-listener
     reader.onload = () => resolve(reader.result as string)
-    // eslint-disable-next-line unicorn/prefer-add-event-listener
     reader.onerror = () => reject(reader.error)
     reader.readAsText(blob)
   })
@@ -114,7 +110,6 @@ describe('FileDownloader', () => {
 
     expect(withBom).toBeInstanceOf(Blob)
     const bomBytes = new Uint8Array(await readBlobAsArrayBuffer(withBom))
-    // eslint-disable-next-line unicorn/number-literal-case
     expect(bomBytes.slice(0, 3)).toEqual(new Uint8Array([0xef, 0xbb, 0xbf]))
     const noBomBytes = await readBlobAsArrayBuffer(withoutBom)
     expect(noBomBytes.byteLength).toBe(blob.size)

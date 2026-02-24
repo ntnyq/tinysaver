@@ -297,8 +297,8 @@ describe('E2E: saveCanvas functionality', () => {
     // WebP support check - skip if not supported
     const testCanvas = document.createElement('canvas')
     const supportsWebP =
-      typeof testCanvas.toBlob === 'function'
-      && testCanvas.toDataURL('image/webp').startsWith('data:image/webp')
+      typeof testCanvas.toBlob === 'function' &&
+      testCanvas.toDataURL('image/webp').startsWith('data:image/webp')
 
     if (!supportsWebP) {
       console.warn('WebP format not supported in this browser, skipping test')
