@@ -2,11 +2,13 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   clean: true,
-  entry: ['src/index.ts'],
-  inlineOnly: ['@ntnyq/utils'],
-  platform: 'browser',
-  minify: 'dce-only',
+  deps: {
+    onlyBundle: ['@ntnyq/utils'],
+  },
   dts: {
     tsgo: true,
   },
+  entry: ['src/index.ts'],
+  minify: 'dce-only',
+  platform: 'browser',
 })

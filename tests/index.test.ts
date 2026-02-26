@@ -8,6 +8,7 @@ const readBlobAsArrayBuffer = (blob: Blob) =>
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as ArrayBuffer)
     reader.onerror = () => reject(reader.error)
+    // oxlint-disable-next-line unicorn/prefer-blob-reading-methods
     reader.readAsArrayBuffer(blob)
   })
 
@@ -16,10 +17,11 @@ const readBlobAsText = (blob: Blob) =>
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
     reader.onerror = () => reject(reader.error)
+    // oxlint-disable-next-line unicorn/prefer-blob-reading-methods
     reader.readAsText(blob)
   })
 
-describe('BrowserDetector', () => {
+describe(BrowserDetector, () => {
   it('should have static methods', () => {
     expect(BrowserDetector.hasDownloadSupport).toBeDefined()
     expect(BrowserDetector.hasMsSaveBlob).toBeDefined()
@@ -35,7 +37,7 @@ describe('BrowserDetector', () => {
   })
 })
 
-describe('FileDownloader', () => {
+describe(FileDownloader, () => {
   let downloader: FileDownloader
 
   beforeEach(() => {

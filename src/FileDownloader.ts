@@ -84,9 +84,9 @@ export class FileDownloader {
           }, options.clickDelay || this.defaultOptions.clickDelay)
         }
       }
-    } catch (err) {
-      options.onError?.(err as Error)
-      throw err
+    } catch (error) {
+      options.onError?.(error as Error)
+      throw error
     }
   }
 
@@ -177,8 +177,8 @@ export class FileDownloader {
           }, options.clickDelay || this.defaultOptions.clickDelay)
         }
       } else {
-        this.handleRemoteUrl(blob, name, options).catch(err => {
-          options.onError?.(err as Error)
+        this.handleRemoteUrl(blob, name, options).catch(error => {
+          options.onError?.(error as Error)
         })
       }
     } else {
@@ -212,8 +212,8 @@ export class FileDownloader {
     options: DownloadOptions,
   ) {
     if (isString(blob)) {
-      this.handleRemoteUrl(blob, name, options).catch(err => {
-        options.onError?.(err as Error)
+      this.handleRemoteUrl(blob, name, options).catch(error => {
+        options.onError?.(error as Error)
       })
     } else {
       const processedBlob = this.addBom(blob, options)
@@ -236,8 +236,8 @@ export class FileDownloader {
     options: DownloadOptions,
   ) {
     if (isString(blob)) {
-      this.handleRemoteUrl(blob, name, options).catch(err => {
-        options.onError?.(err as Error)
+      this.handleRemoteUrl(blob, name, options).catch(error => {
+        options.onError?.(error as Error)
       })
       return
     }
@@ -260,10 +260,10 @@ export class FileDownloader {
       const reader = new FileReader()
 
       reader.onloadend = () => {
-        let url = reader.result as string
-        url = this.detector.isChromeIOS
-          ? url
-          : url.replace(/^data:[^;]*;/, 'data:attachment/file;')
+        const result = reader.result as string
+        const url = this.detector.isChromeIOS
+          ? result
+          : result.replace(/^data:[^;]*;/, 'data:attachment/file;')
         if (popup) {
           popup.location.href = url
         } else {
@@ -324,9 +324,9 @@ export class FileDownloader {
 
       // Call onComplete after a short delay to ensure download starts
       setTimeout(() => options.onComplete?.(), 100)
-    } catch (err) {
-      options.onError?.(err as Error)
-      throw err
+    } catch (error) {
+      options.onError?.(error as Error)
+      throw error
     }
   }
 

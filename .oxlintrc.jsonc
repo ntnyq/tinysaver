@@ -2,12 +2,12 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": [
     "eslint",
-    "import",
-    "jsdoc",
-    "node",
-    "promise",
+    // "import",
+    // "jsdoc",
+    // "node",
+    // "promise",
     "oxc",
-    "typescript",
+    // "typescript",
     "unicorn",
     "vue",
   ],
@@ -18,30 +18,135 @@
     "perf": "warn",
     "style": "warn",
     "restriction": "warn",
+    "nursery": "warn",
   },
-  "ignorePatterns": [
-    "**/dist/**",
-    "**/node_modules/**",
-    "**/tests/fixtures/**",
-  ],
-  "globals": {},
-  "rules": {},
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/fixtures/**"],
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "es6": true,
+  },
+  "rules": {
+    "capitalized-comments": "off",
+    "class-methods-use-this": "off",
+    // prefer to export declarations instead of exporting at the end
+    "group-exports": "off",
+    // this rule is too restrictive
+    "init-declarations": "off",
+    // re-export is needed in many cases
+    "no-barrel-file": "off",
+    // allow continue in complicated loops
+    "no-continue": "off",
+    "no-inline-comments": "off",
+    // magic numbers shall be allowed in some cases
+    "no-magic-numbers": "off",
+    // allow nested ternary for better readability in some cases
+    "no-nested-ternary": "off",
+    // allow null usage
+    "no-null": "off",
+    // NOTE: this rule currently do not allow to forbid change with read operations, a single expression like `a++;` shall be allowed with loops
+    // "no-plusplus": ["warn", { "allowForLoopAfterthoughts": true }],
+    "no-plusplus": "off",
+    // ternary operator shall be allowed for simple expressions
+    "no-ternary": "off",
+    // _ is commonly used as a placeholder variable name
+    "no-shadow": ["warn", { "allow": ["_"] }],
+    // allow using variables before their declaration, as long as they are not used in their initializers
+    "no-use-before-define": ["warn", { "allowNamedExports": true }],
+    // we use void operator to mark those promise that shall not be awaited
+    "no-void": "off",
+    // normally we do not enforce numeric separator usage
+    "numeric-separators-style": "off",
+    // Only warn if all variables in a destructuring assignment should be const
+    "prefer-const": ["warn", { "destructuring": "all" }],
+    "prefer-destructuring": "off",
+    // some functions that return promise and plain values in different conditions
+    // need an async declaration while not always using await
+    "require-await": "off",
+    // we prefer to sort imports with its pkg name
+    "sort-imports": "off",
+    // object keys are not supposed to be sorted in many cases
+    "sort-keys": "off",
+
+    // jsdoc plugin rules
+    // duplicated typescript related jsdoc shall be warned
+    "jsdoc/check-tag-names": ["warn", { "typed": true }],
+    "jsdoc/require-param": [
+      "warn",
+      { "checkConstructors": true, "checkDestructuredRoots": false },
+    ],
+    // we do not require types in jsdoc since we use TypeScript
+    "jsdoc/require-param-type": "off",
+    // getter does not need a @returns tag
+    "jsdoc/require-returns": ["warn", { "checkGetters": false }],
+    // we do not require types in jsdoc since we use TypeScript
+    "jsdoc/require-returns-type": "off",
+    "oxc/no-async-await": "off",
+    "oxc/no-optional-chaining": "off",
+    "oxc/no-rest-spread-properties": "off",
+    "promise/always-return": "off",
+    // we sometimes need to create new Promise instance
+    "promise/avoid-new": "off",
+    // we prefer async/await syntax
+    "promise/prefer-await-to-then": "off",
+    "unicorn/filename-case": "off",
+    "unicorn/number-literal-case": "off",
+    "unicorn/prefer-add-event-listener": "off",
+    "unicorn/prefer-global-this": "off",
+    "curly": ["warn", "all"],
+    "id-length": [
+      "warn",
+      {
+        "min": 2,
+        "exceptions": [
+          // sorting
+          "a",
+          "b",
+          // loops
+          "i",
+          "j",
+          "k",
+          // position
+          "x",
+          "y",
+          "z",
+          // Type parameter
+          "T",
+          // parameter name for unused variables
+          "_",
+          "__",
+        ],
+        "properties": "never",
+      },
+    ],
+    "func-style": ["warn", "declaration", { "allowArrowFunctions": true }],
+    "max-dependencies": ["warn", { "ignoreTypeImports": true, "max": 15 }],
+    "max-lines": [
+      "warn",
+      { "max": 500, "skipBlankLines": true, "skipComments": true },
+    ],
+    "max-lines-per-function": [
+      "warn",
+      { "max": 100, "skipBlankLines": true, "skipComments": true },
+    ],
+    "max-params": ["warn", 4],
+    "max-statements": ["warn", { "max": 30 }],
+  },
   "overrides": [
     {
-      "files": ["scripts/**/*.{js,ts}"],
-      "rules": {},
+      "files": ["**/scripts/**/*.{js,ts}"],
+      "rules": {
+        "no-console": "off",
+      },
     },
     {
-      "files": ["**/components/**/*.{ts,tsx,vue}"],
+      "files": ["*.config.{ts,mjs}"],
       "rules": {
-        // loose max lines for components setup blocks
-        "max-lines-per-function": [
-          "warn",
-          { "max": 300, "skipBlankLines": true, "skipComments": true },
-        ],
-        // FIXME: This does not work unless plugin vue is enabled
-        // increase max props for vue components to 5
-        // "vue/max-props": ["warn", { "maxProps": 5 }]
+        "new-cap": "off",
+        "no-console": "off",
+        "sort-keys": "warn",
+        "import/no-default-export": "off",
+        "import/no-nodejs-modules": "off",
       },
     },
     {
@@ -54,7 +159,7 @@
       },
     },
     {
-      "files": [".{spec,test}.{js,ts,tsx}", ".{spec,test}-d.{ts,tsx}"],
+      "files": ["*.{spec,test}.{js,ts,tsx}", "*.{spec,test}-d.{ts,tsx}"],
       "plugins": ["vitest"],
       "rules": {
         "id-length": "off",
@@ -64,11 +169,29 @@
         "max-statements": "off",
         "no-empty-function": "off",
         "no-undefined": "off",
+        "no-useless-assignment": "off",
+        // vitest polyfills __dirname and __filename
+        "prefer-module": "off",
         "import/no-nodejs-modules": "off",
         "typescript/ban-ts-comment": "off",
         "typescript/no-non-null-assertion": "off",
         "typescript/prefer-ts-expect-error": "off",
         "typescript/require-array-sort-compare": "off",
+        "vitest/consistent-test-filename": [
+          "warn",
+          {
+            "allTestPattern": "(^|\\/)__tests__\\/",
+            "pattern": ".*\\.((bench|spec)\\.[tj]sx?|spec-d\\.ts)$",
+          },
+        ],
+        "unicorn/no-useless-undefined": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "vitest/require-test-timeout": "off",
+        "vitest/prefer-called-once": "off",
+        "vitest/prefer-to-be-falsy": "off",
+        "vitest/prefer-to-be-truthy": "off",
+        "vitest/require-mock-type-parameters": "off",
+        "vitest/no-importing-vitest-globals": "off",
       },
     },
   ],
