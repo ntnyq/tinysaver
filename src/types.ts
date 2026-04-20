@@ -1,3 +1,11 @@
+export type DownloadPhase =
+  | 'probing'
+  | 'downloading'
+  | 'saving'
+  | 'completed'
+  | 'error'
+  | 'aborted'
+
 /**
  * Extended options for file downloading
  */
@@ -51,4 +59,24 @@ export interface DownloadOptions {
    * Callback function when download starts
    */
   onStart?: () => void
+  /**
+   * Abort signal used for remote download requests
+   */
+  signal?: AbortSignal
+  /**
+   * Additional fetch options used when probing remote URL CORS capability
+   */
+  fetchOptions?: Omit<RequestInit, 'method' | 'mode' | 'signal'>
+  /**
+   * Abort after timeout (milliseconds). `0` or `undefined` disables timeout.
+   */
+  timeout?: number
+  /**
+   * Prefer File System Access API when available.
+   */
+  preferFileSystemAccess?: boolean
+  /**
+   * Status callback for download lifecycle.
+   */
+  onPhaseChange?: (phase: DownloadPhase) => void
 }

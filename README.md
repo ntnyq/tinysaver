@@ -26,7 +26,14 @@ pnpm add tinysaver
 ### ✨ Basic Usage
 
 ```ts
-import { saveAs, saveText, saveJSON, saveCanvas } from 'tinysaver'
+import {
+  saveAs,
+  saveAsAsync,
+  saveText,
+  saveJSON,
+  saveCanvas,
+  saveStream,
+} from 'tinysaver'
 
 // Save a Blob
 saveAs(new Blob(['hello world'], { type: 'text/plain' }), 'hello-world.txt')
@@ -40,6 +47,13 @@ saveJSON({ name: 'John', age: 30 }, 'data.json', { space: 2 })
 // Save canvas as image
 const canvas = document.querySelector('canvas')
 saveCanvas(canvas, 'image.png', { quality: 0.95 })
+
+// Promise-based save
+await saveAsAsync(new Blob(['hello async']), 'async.txt')
+
+// Save from stream/response
+const response = await fetch('/api/export')
+await saveStream(response, 'export.bin')
 ```
 
 ### ⚙️ With Options
@@ -63,6 +77,13 @@ saveAs(new Blob(['hello world'], { type: 'text/plain' }), 'hello-world.txt', {
   },
   onProgress(loaded, total) {
     console.log(`${loaded}/${total}`)
+  },
+  timeout: 10_000, // Abort automatically after 10s
+  signal: abortController.signal, // Manual cancellation
+  fetchOptions: { credentials: 'include' }, // For CORS probing request
+  preferFileSystemAccess: true, // Use showSaveFilePicker when supported
+  onPhaseChange(phase) {
+    console.log(phase) // probing/downloading/saving/completed/error/aborted
   },
 })
 ```
@@ -106,6 +127,10 @@ tinysaver supports all modern browsers with automatic fallback for older version
 
 Save any Blob or URL as a file. Compatible with FileSaver.js `saveAs` API.
 
+### ⏳ `saveAsAsync(blob, filename?, options?)`
+
+Promise-based version of `saveAs`, suitable for async workflows and explicit error handling.
+
 **Parameters:**
 
 - `blob` - Blob object or URL string
@@ -142,6 +167,10 @@ Save HTML canvas as an image file.
 - `filename` - Name of the image file
 - `options` - Download options with optional `type` and `quality` properties
 
+### 🌊 `saveStream(source, filename, options?)`
+
+Save stream data (`ReadableStream`, `Response`, `AsyncIterable`) as a file.
+
 ## ✅ Testing
 
 The library includes comprehensive unit tests covering:
@@ -153,6 +182,18 @@ The library includes comprehensive unit tests covering:
 - 💾 saveText, saveJSON, and saveCanvas implementations
 - ⚠️ Canvas conversion error handling
 - 🔔 Callback invocation during download lifecycle
+- ⏱️ Timeout/abort behavior and phase callbacks
+- 🌊 Stream-based save flow
+- 📂 File System Access API preferred path
+
+### Compatibility Matrix Plan
+
+- Unit tests run in `jsdom` for deterministic behavior.
+- Runtime fallback matrix is covered by branches for download attribute, `msSaveOrOpenBlob`, and `FileReader`.
+- Recommended release validation targets:
+  - Desktop: latest Chrome, Firefox, Safari
+  - Mobile: iOS Safari / Chrome iOS WebView
+  - Legacy fallback: environments exposing `msSaveOrOpenBlob`
 
 Run tests with:
 

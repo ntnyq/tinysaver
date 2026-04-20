@@ -9,7 +9,6 @@
     "oxc",
     // "typescript",
     "unicorn",
-    "vue",
   ],
   "categories": {
     "correctness": "error",
@@ -20,7 +19,12 @@
     "restriction": "warn",
     "nursery": "warn",
   },
-  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/fixtures/**"],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/fixtures/**",
+    "**/.pnpm-store/**",
+  ],
   "env": {
     "builtin": true,
     "browser": true,

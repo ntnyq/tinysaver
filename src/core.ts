@@ -1,4 +1,4 @@
-import { FileDownloader } from './FileDownloader'
+import { FileDownloader } from './downloader'
 import type { DownloadOptions } from './types'
 
 // Singleton instance
@@ -19,6 +19,17 @@ export function saveAs(
 }
 
 /**
+ * Save a file with Promise-based completion
+ */
+export function saveAsAsync(
+  blob: string | Blob,
+  filename?: string,
+  options?: DownloadOptions,
+): Promise<void> {
+  return downloader.saveAsync(blob, filename, options)
+}
+
+/**
  * Save text content as a file
  */
 export function saveText(
@@ -33,9 +44,9 @@ export function saveText(
  * Save JSON data as a file
  */
 export function saveJSON(
-  data: any,
+  data: unknown,
   filename: string,
-  options?: DownloadOptions & { space?: number },
+  options?: DownloadOptions & { space?: string | number },
 ): void {
   downloader.saveJSON(data, filename, options)
 }
@@ -49,4 +60,15 @@ export function saveCanvas(
   options?: DownloadOptions & { quality?: number; type?: string },
 ): void {
   downloader.saveCanvas(canvas, filename, options)
+}
+
+/**
+ * Save stream content as a file
+ */
+export function saveStream(
+  source: ReadableStream<Uint8Array> | Response | AsyncIterable<Uint8Array>,
+  filename: string,
+  options?: DownloadOptions & { mimeType?: string },
+): Promise<void> {
+  return downloader.saveStream(source, filename, options)
 }

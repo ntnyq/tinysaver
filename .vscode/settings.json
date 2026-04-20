@@ -21,6 +21,7 @@
     "tsdown",
     "tsgo",
     "unrs",
+    "unstub",
     "vite",
     "vitest"
   ],

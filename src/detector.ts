@@ -9,9 +9,9 @@ export class BrowserDetector {
   static get isMacOSWebViews(): boolean {
     const userAgent = this.getUserAgent()
     return (
-      /Macintosh/.test(userAgent) &&
-      /AppleWebKit/.test(userAgent) &&
-      !/Safari/.test(userAgent)
+      /Macintosh/u.test(userAgent) &&
+      /AppleWebKit/u.test(userAgent) &&
+      !/Safari/u.test(userAgent)
     )
   }
 
@@ -19,17 +19,17 @@ export class BrowserDetector {
     if (typeof window !== 'undefined') {
       // More reliable Safari detection
       const hasSafariInWindow = 'safari' in window
-      const vendorCheck = /Apple/.test(navigator.vendor)
+      const vendorCheck = /Apple/u.test(navigator.vendor)
       const userAgentCheck =
-        /Safari/.test(navigator.userAgent) &&
-        !/Chrome/.test(navigator.userAgent)
+        /Safari/u.test(navigator.userAgent) &&
+        !/Chrome/u.test(navigator.userAgent)
       return hasSafariInWindow || (vendorCheck && userAgentCheck)
     }
     return false
   }
 
   static get isChromeIOS(): boolean {
-    return /CriOS\/\d+/.test(this.getUserAgent())
+    return /CriOS\/\d+/u.test(this.getUserAgent())
   }
 
   static get hasDownloadSupport(): boolean {
