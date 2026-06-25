@@ -5,10 +5,9 @@ export default defineConfig({
   deps: {
     onlyBundle: ['@ntnyq/utils'],
   },
-  dts: {
-    tsgo: true,
-  },
+  dts: true,
   entry: ['src/index.ts'],
   minify: 'dce-only',
   platform: 'browser',
+  target: ['chrome87', 'edge88', 'firefox78', 'safari14'],
 })

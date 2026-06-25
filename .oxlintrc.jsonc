@@ -71,7 +71,6 @@
     "sort-imports": "off",
     // object keys are not supposed to be sorted in many cases
     "sort-keys": "off",
-
     // jsdoc plugin rules
     // duplicated typescript related jsdoc shall be warned
     "jsdoc/check-tag-names": ["warn", { "typed": true }],
@@ -190,10 +189,12 @@
         ],
         "unicorn/no-useless-undefined": "off",
         "unicorn/consistent-function-scoping": "off",
-        "vitest/require-test-timeout": "off",
+        "vitest/no-hooks": "off",
         "vitest/prefer-called-once": "off",
         "vitest/prefer-to-be-falsy": "off",
         "vitest/prefer-to-be-truthy": "off",
+        "vitest/require-test-timeout": "off",
+        "vitest/prefer-expect-assertions": "off",
         "vitest/require-mock-type-parameters": "off",
         "vitest/no-importing-vitest-globals": "off",
       },

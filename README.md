@@ -76,7 +76,7 @@ saveAs(new Blob(['hello world'], { type: 'text/plain' }), 'hello-world.txt', {
     console.error('Download failed', err)
   },
   onProgress(loaded, total) {
-    console.log(`${loaded}/${total}`)
+    console.log(`${loaded}/${total}`) // total is 0 when size is unknown
   },
   timeout: 10_000, // Abort automatically after 10s
   signal: abortController.signal, // Manual cancellation
@@ -113,13 +113,14 @@ saveText('content', 'file.txt', {
 
 ## 🌐 Browser Support
 
-tinysaver supports all modern browsers with automatic fallback for older versions:
+tinysaver targets the following browser versions and newer:
 
-- ✅ Chrome/Edge (all versions with download attribute support)
-- ✅ Firefox (all versions)
-- ✅ Safari (all versions, including iOS)
-- ✅ Opera (all versions)
-- ⚠️ IE (fallback via msSaveOrOpenBlob)
+- Chrome 87
+- Edge 88
+- Firefox 78
+- Safari 14
+
+Internet Explorer is not supported.
 
 ## 📚 API
 
@@ -171,11 +172,15 @@ Save HTML canvas as an image file.
 
 Save stream data (`ReadableStream`, `Response`, `AsyncIterable`) as a file.
 
+When `preferFileSystemAccess` is enabled and supported, chunks are written
+directly to the selected file. Other browsers materialize the stream as a
+browser-managed `Blob` before starting the download. Abort signals and timeouts
+cancel the active stream and propagate cancellation to its source.
+
 ## ✅ Testing
 
 The library includes comprehensive unit tests covering:
 
-- 🔍 BrowserDetector static and instance methods
 - 📥 FileDownloader core functionality and error handling
 - 🏷️ BOM (Byte Order Mark) insertion for text files
 - 📝 Default filename handling
@@ -186,14 +191,12 @@ The library includes comprehensive unit tests covering:
 - 🌊 Stream-based save flow
 - 📂 File System Access API preferred path
 
-### Compatibility Matrix Plan
+### Compatibility Matrix
 
 - Unit tests run in `jsdom` for deterministic behavior.
-- Runtime fallback matrix is covered by branches for download attribute, `msSaveOrOpenBlob`, and `FileReader`.
-- Recommended release validation targets:
-  - Desktop: latest Chrome, Firefox, Safari
-  - Mobile: iOS Safari / Chrome iOS WebView
-  - Legacy fallback: environments exposing `msSaveOrOpenBlob`
+- Production builds target Chrome 87, Edge 88, Firefox 78, and Safari 14.
+- Downloads use the standard anchor `download` attribute and `URL` API.
+- IE-only and pre-modern browser fallbacks are intentionally excluded.
 
 Run tests with:
 

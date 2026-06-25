@@ -1,3 +1,8 @@
+/**
+ * Lifecycle phase reported while a download is in progress.
+ *
+ * Use {@link DownloadOptions.onPhaseChange} to observe phase changes.
+ */
 export type DownloadPhase =
   | 'probing'
   | 'downloading'
@@ -52,7 +57,7 @@ export interface DownloadOptions {
   /**
    * Progress callback for download tracking
    * @param loaded - loaded bytes
-   * @param total - total bytes
+   * @param total - total bytes, or `0` when the source size is unknown
    */
   onProgress?: (loaded: number, total: number) => void
   /**
@@ -60,7 +65,7 @@ export interface DownloadOptions {
    */
   onStart?: () => void
   /**
-   * Abort signal used for remote download requests
+   * Abort signal used for remote downloads and stream reads
    */
   signal?: AbortSignal
   /**
@@ -68,7 +73,8 @@ export interface DownloadOptions {
    */
   fetchOptions?: Omit<RequestInit, 'method' | 'mode' | 'signal'>
   /**
-   * Abort after timeout (milliseconds). `0` or `undefined` disables timeout.
+   * Abort remote downloads and stream reads after this timeout (milliseconds).
+   * `0` or `undefined` disables timeout.
    */
   timeout?: number
   /**
@@ -80,3 +86,50 @@ export interface DownloadOptions {
    */
   onPhaseChange?: (phase: DownloadPhase) => void
 }
+
+/**
+ * Options accepted when saving text content.
+ *
+ * The UTF-8 BOM behavior is managed by the text-saving API.
+ */
+export type SaveTextOptions = Omit<DownloadOptions, 'autoBom'> & {
+  mimeType?: string
+}
+
+/**
+ * Options accepted when serializing and saving JSON data.
+ *
+ * The `space` option is forwarded to `JSON.stringify`.
+ */
+export type SaveJSONOptions = DownloadOptions & {
+  space?: string | number
+}
+
+/**
+ * Options accepted when converting and saving canvas content.
+ *
+ * The image `type` and `quality` values are forwarded to `canvas.toBlob`.
+ */
+export type SaveCanvasOptions = DownloadOptions & {
+  quality?: number
+  type?: string
+}
+
+/**
+ * Options accepted when consuming and saving stream content.
+ *
+ * The MIME type defaults to the response header or binary data.
+ */
+export type SaveStreamOptions = DownloadOptions & {
+  mimeType?: string
+}
+
+/**
+ * Content sources supported by the stream-saving API.
+ *
+ * Responses contribute their body, content length, and content type metadata.
+ */
+export type DownloadStreamSource =
+  | ReadableStream<Uint8Array>
+  | Response
+  | AsyncIterable<Uint8Array>

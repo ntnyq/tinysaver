@@ -3,7 +3,6 @@ import { FileDownloader } from '../src/downloader'
 
 describe('promise API', () => {
   it('saveAsAsync should reject with async remote errors', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
 
     vi.spyOn(downloader as any, 'checkCors').mockResolvedValue(true)

@@ -1,14 +1,26 @@
 import { FileDownloader } from './downloader'
-import type { DownloadOptions } from './types'
+import type {
+  DownloadOptions,
+  DownloadStreamSource,
+  SaveCanvasOptions,
+  SaveJSONOptions,
+  SaveStreamOptions,
+  SaveTextOptions,
+} from './types'
 
-// Singleton instance
+/**
+ * Shared downloader instance used by the package convenience functions.
+ *
+ * Use this instance when direct access to {@link FileDownloader} methods is useful.
+ */
 export const downloader = new FileDownloader()
 
 /**
- * Save a file - Compatible with FileSaver.js saveAs API
- * @param blob - Blob object or URL string
- * @param filename - Name of the file to save
- * @param options - Download options
+ * Saves a Blob or URL using an API compatible with FileSaver.js `saveAs`.
+ *
+ * @param blob - Blob object or URL string to save.
+ * @param filename - Suggested name for the downloaded file.
+ * @param options - Download lifecycle and browser behavior options.
  */
 export function saveAs(
   blob: string | Blob,
@@ -19,7 +31,12 @@ export function saveAs(
 }
 
 /**
- * Save a file with Promise-based completion
+ * Saves a Blob or URL and resolves when the download workflow completes.
+ *
+ * @param blob - Blob object or URL string to save.
+ * @param filename - Suggested name for the downloaded file.
+ * @param options - Download lifecycle and browser behavior options.
+ * @returns A promise that rejects when saving fails or is aborted.
  */
 export function saveAsAsync(
   blob: string | Blob,
@@ -30,45 +47,62 @@ export function saveAsAsync(
 }
 
 /**
- * Save text content as a file
+ * Saves text content as a UTF-8 file with automatic BOM handling.
+ *
+ * @param text - Text content to save.
+ * @param filename - Suggested name for the downloaded file.
+ * @param options - Text MIME type and download behavior options.
  */
 export function saveText(
   text: string,
   filename: string,
-  options?: Omit<DownloadOptions, 'autoBom'> & { mimeType?: string },
+  options?: SaveTextOptions,
 ): void {
   downloader.saveText(text, filename, options)
 }
 
 /**
- * Save JSON data as a file
+ * Serializes and saves JSON-compatible data as a UTF-8 file.
+ *
+ * @param data - Value passed to `JSON.stringify`.
+ * @param filename - Suggested name for the downloaded file.
+ * @param options - JSON formatting and download behavior options.
  */
 export function saveJSON(
   data: unknown,
   filename: string,
-  options?: DownloadOptions & { space?: string | number },
+  options?: SaveJSONOptions,
 ): void {
   downloader.saveJSON(data, filename, options)
 }
 
 /**
- * Save canvas as an image file
+ * Converts a canvas to an image Blob and saves it as a file.
+ *
+ * @param canvas - Canvas containing the image to save.
+ * @param filename - Suggested name for the downloaded file.
+ * @param options - Image conversion and download behavior options.
  */
 export function saveCanvas(
   canvas: HTMLCanvasElement,
   filename: string,
-  options?: DownloadOptions & { quality?: number; type?: string },
+  options?: SaveCanvasOptions,
 ): void {
   downloader.saveCanvas(canvas, filename, options)
 }
 
 /**
- * Save stream content as a file
+ * Consumes a readable source and saves its bytes as a file.
+ *
+ * @param source - Stream, response, or asynchronous byte iterable to consume.
+ * @param filename - Suggested name for the downloaded file.
+ * @param options - Stream MIME type and download behavior options.
+ * @returns A promise that resolves after the stream has been saved.
  */
 export function saveStream(
-  source: ReadableStream<Uint8Array> | Response | AsyncIterable<Uint8Array>,
+  source: DownloadStreamSource,
   filename: string,
-  options?: DownloadOptions & { mimeType?: string },
+  options?: SaveStreamOptions,
 ): Promise<void> {
   return downloader.saveStream(source, filename, options)
 }

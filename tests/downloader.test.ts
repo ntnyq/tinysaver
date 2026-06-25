@@ -1,40 +1,34 @@
 import { describe, expect, it, vi } from 'vitest'
 import { FileDownloader } from '../src/downloader'
-import { readBlobAsArrayBuffer, readBlobAsText } from './helpers/blob'
+import { addBom } from '../src/downloader/blob'
 
 describe('fileDownloader class', () => {
   it('should create instance', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     expect(downloader).toBeInstanceOf(FileDownloader)
   })
 
   it('should have save method', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     expect(downloader.save).toBeInstanceOf(Function)
   })
 
   it('should have saveText method', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     expect(downloader.saveText).toBeInstanceOf(Function)
   })
 
   it('should have saveJSON method', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     expect(downloader.saveJSON).toBeInstanceOf(Function)
   })
 
   it('should have saveCanvas method', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     expect(downloader.saveCanvas).toBeInstanceOf(Function)
   })
 
   it('should call onStart callback', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onStart = vi.fn()
     const blob = new Blob(['test'], { type: 'text/plain' })
@@ -48,7 +42,6 @@ describe('fileDownloader class', () => {
   })
 
   it('should create text blob with correct MIME type', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onStart = vi.fn()
 
@@ -61,7 +54,6 @@ describe('fileDownloader class', () => {
   })
 
   it('should create JSON blob from data', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onStart = vi.fn()
     const data = { name: 'test', value: 123 }
@@ -75,40 +67,33 @@ describe('fileDownloader class', () => {
   })
 
   it('should add BOM only when requested', async () => {
-    expect.hasAssertions()
-    const downloader = new FileDownloader()
     const blob = new Blob(['hello'], { type: 'text/plain;charset=utf-8' })
-    const withBom = (downloader as any).addBom(blob, { autoBom: true }) as Blob
-    const withoutBom = (downloader as any).addBom(blob, {
+    const withBom = addBom(blob, { autoBom: true })
+    const withoutBom = addBom(blob, {
       autoBom: false,
-    }) as Blob
+    })
 
     expect(withBom).toBeInstanceOf(Blob)
-    const bomBytes = new Uint8Array(await readBlobAsArrayBuffer(withBom))
+    const bomBytes = new Uint8Array(await withBom.arrayBuffer())
     expect(bomBytes.slice(0, 3)).toStrictEqual(
       new Uint8Array([0xef, 0xbb, 0xbf]),
     )
-    const noBomBytes = await readBlobAsArrayBuffer(withoutBom)
+    const noBomBytes = await withoutBom.arrayBuffer()
     expect(noBomBytes.byteLength).toBe(blob.size)
   })
 
   it('should use default filename when not provided', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
-    const spy = vi
-      .spyOn(downloader as any, 'saveBlob')
-      .mockReturnValue(undefined)
-    downloader.save(new Blob(['x']))
+    const createElement = vi.spyOn(document, 'createElement')
+    downloader.save(new Blob(['x']), undefined, { disableClick: true })
 
-    expect(spy).toHaveBeenCalledWith(
-      expect.any(Blob),
-      'download',
-      expect.any(Object),
-    )
+    const anchor = createElement.mock.results[0]?.value
+    expect(anchor).toBeInstanceOf(HTMLAnchorElement)
+    expect((anchor as HTMLAnchorElement).download).toBe('download')
+    createElement.mockRestore()
   })
 
   it('saveText should forward blob with correct mime type and content', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const spy = vi.spyOn(downloader, 'save').mockReturnValue(undefined)
     downloader.saveText('hello', 'greeting.txt')
@@ -118,12 +103,11 @@ describe('fileDownloader class', () => {
     expect(filename).toBe('greeting.txt')
     expect(options?.autoBom).toBe(true)
     expect((blob as Blob).type).toBe('text/plain;charset=utf-8')
-    const text = await readBlobAsText(blob as Blob)
+    const text = await (blob as Blob).text()
     expect(text).toBe('hello')
   })
 
   it('saveJSON should stringify data with defaults and add BOM', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const spy = vi.spyOn(downloader, 'save').mockReturnValue(undefined)
     downloader.saveJSON({ a: 1 }, 'data.json', { space: 2 })
@@ -132,23 +116,21 @@ describe('fileDownloader class', () => {
     expect(filename).toBe('data.json')
     expect(options?.autoBom).toBe(true)
     expect((blob as Blob).type).toBe('application/json;charset=utf-8')
-    const json = JSON.parse(await readBlobAsText(blob as Blob)) as { a: number }
+    const json = JSON.parse(await (blob as Blob).text()) as { a: number }
     expect(json).toStrictEqual({ a: 1 })
   })
 
   it('saveJSON should support string spacing', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const spy = vi.spyOn(downloader, 'save').mockReturnValue(undefined)
     downloader.saveJSON({ a: 1 }, 'data.json', { space: '\t' })
 
     const [blob] = spy.mock.calls[0]!
-    const text = await readBlobAsText(blob as Blob)
+    const text = await (blob as Blob).text()
     expect(text).toContain('\n\t"a": 1\n')
   })
 
   it('saveCanvas should pass defaults into toBlob and save result', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const blob = new Blob(['image'], { type: 'image/png' })
     const toBlob = vi.fn(
@@ -168,7 +150,6 @@ describe('fileDownloader class', () => {
   })
 
   it('saveCanvas should surface conversion errors asynchronously via onError', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onError = vi.fn()
     const canvas = {
@@ -190,7 +171,6 @@ describe('fileDownloader class', () => {
   })
 
   it('remote URL error path should call onError only once', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onError = vi.fn()
     const checkCorsSpy = vi
@@ -217,7 +197,6 @@ describe('fileDownloader class', () => {
   })
 
   it('downloadWithProgress should call onProgress and onComplete', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onProgress = vi.fn()
     const onComplete = vi.fn()
@@ -262,7 +241,6 @@ describe('fileDownloader class', () => {
   })
 
   it('downloadWithProgress should report non-200 response', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onError = vi.fn()
 
@@ -297,7 +275,6 @@ describe('fileDownloader class', () => {
   })
 
   it('downloadWithProgress should report network errors', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onError = vi.fn()
 
@@ -332,7 +309,6 @@ describe('fileDownloader class', () => {
   })
 
   it('downloadWithProgress should handle abort signal', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const onError = vi.fn()
     const controller = new AbortController()
@@ -369,7 +345,6 @@ describe('fileDownloader class', () => {
   })
 
   it('checkCors should pass fetchOptions and timeout signal', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -392,7 +367,6 @@ describe('fileDownloader class', () => {
   })
 
   it('should emit phase callbacks in blob save flow', () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const phases: string[] = []
     downloader.save(new Blob(['x']), 'x.txt', {
@@ -403,7 +377,6 @@ describe('fileDownloader class', () => {
   })
 
   it('saveStream should save readable stream content', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const saveSpy = vi
       .spyOn(downloader, 'saveAsync')
@@ -425,7 +398,6 @@ describe('fileDownloader class', () => {
   })
 
   it('save should use File System Access API when preferred', async () => {
-    expect.hasAssertions()
     const downloader = new FileDownloader()
     const write = vi.fn().mockResolvedValue(undefined)
     const close = vi.fn().mockResolvedValue(undefined)
