@@ -42,6 +42,8 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint",
+    "playground": "pnpm -C playground run dev",
+    "playground:build": "pnpm -C playground run build",
     "prepare": "husky",
     "prepublishOnly": "pnpm run build",
     "release": "run-s release:check release:version",
@@ -51,12 +53,15 @@
     "test": "vitest",
     "test:browser": "run-s build test:browser:run",
     "test:browser:run": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "run-p typecheck:lib typecheck:playground",
+    "typecheck:lib": "tsc --noEmit",
+    "typecheck:playground": "pnpm -C playground run typecheck"
   },
   "devDependencies": {
     "@ntnyq/tsconfig": "^3.1.0",
     "@ntnyq/utils": "^0.21.0",
     "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
     "bumpp": "^12.1.1",
     "husky": "^9.1.7",
     "jsdom": "^30.0.1",

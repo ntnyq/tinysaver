@@ -13,15 +13,29 @@
   },
   "htmlWhitespaceSensitivity": "css",
   "ignorePatterns": [
-    "pnpm-lock.yaml",
-    "**/*.min.*",
     "**/node_modules/**",
     "**/dist/**",
-    "**/fixtures/**",
+    "pnpm-lock.yaml",
+    "**/*.min.*",
+    "**/tests/fixtures/**",
   ],
   "insertFinalNewline": true,
   "jsxSingleQuote": true,
   "objectWrap": "preserve",
+  "overrides": [
+    {
+      "files": ["**/*.{css,scss}"],
+      "options": {
+        "singleQuote": false,
+      },
+    },
+    {
+      "files": ["**/*.html"],
+      "options": {
+        "singleAttributePerLine": false,
+      },
+    },
+  ],
   "printWidth": 80,
   "proseWrap": "preserve",
   "quoteProps": "as-needed",

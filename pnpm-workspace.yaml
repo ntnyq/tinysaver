@@ -1,3 +1,6 @@
+packages:
+  - playground
+
 minimumReleaseAge: 0
 
 ignoreWorkspaceRootCheck: true

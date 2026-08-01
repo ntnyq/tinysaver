@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "moduleResolution": "Bundler",
+    "paths": {
+      "tinysaver": ["../src/index.ts"],
+      "tinysaver/stream": ["../src/stream.ts"]
+    },
+    "types": ["vite/client", "node"]
+  },
+  "exclude": [],
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}

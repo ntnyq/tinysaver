@@ -240,6 +240,17 @@ pnpm test
 pnpm test:browser
 ```
 
+## 🧪 Playground
+
+The Vue playground contains interactive examples for saving text, JSON,
+canvas artwork, and generated streams directly in the browser.
+
+```bash
+pnpm playground
+```
+
+Run `pnpm playground:build` to verify its production bundle.
+
 ## 🙏 Credits
 
 - [eligrey/FileSaver.js](https://github.com/eligrey/FileSaver.js)
