@@ -6,42 +6,21 @@ import {
   DEFAULT_JSON_MIME,
   DEFAULT_TEXT_MIME,
 } from './constants'
-import {
-  createAbortError,
-  toError,
-  withTimeoutSignal,
-} from './downloader/abort'
+import { toError } from './downloader/abort'
 import { addBom, resolveFilename } from './downloader/blob'
 import { saveWithDownloadAttribute } from './downloader/dom'
-import {
-  saveBlobWithFileSystemAccess,
-  saveStreamWithFileSystemAccess,
-} from './downloader/file-system-access'
+import { saveBlobWithFileSystemAccess } from './downloader/file-system-access'
 import {
   checkCors as checkRemoteCors,
   downloadRemoteUrl,
   downloadWithProgress as downloadRemoteWithProgress,
 } from './downloader/remote'
-import {
-  consumeStream,
-  resolveStreamSource,
-  toReadableStream,
-} from './downloader/stream'
 import type {
   DownloadOptions,
-  DownloadStreamSource,
   SaveCanvasOptions,
   SaveJSONOptions,
-  SaveStreamOptions,
   SaveTextOptions,
 } from './types'
-
-function withoutStreamCallbacks(options: DownloadOptions): DownloadOptions {
-  const saveOptions = { ...options }
-  delete saveOptions.onProgress
-  delete saveOptions.onStart
-  return saveOptions
-}
 
 /**
  * Coordinates browser download transports behind a reusable object-oriented API.
@@ -247,86 +226,5 @@ export class FileDownloader {
         }
       }
     })
-  }
-
-  /**
-   * Consumes a readable source and saves its bytes as a file.
-   *
-   * @param source - Stream, response, or asynchronous byte iterable to consume.
-   * @param filename - Suggested filename for the download.
-   * @param options - Stream MIME type and download behavior options.
-   * @returns A promise that resolves after all bytes have been saved.
-   */
-  public async saveStream(
-    source: DownloadStreamSource,
-    filename: string,
-    options?: SaveStreamOptions,
-  ): Promise<void> {
-    const mergedOptions: DownloadOptions = {
-      ...this.defaultOptions,
-      ...options,
-    }
-    const resolvedSource = resolveStreamSource(source, options)
-    if (!resolvedSource) {
-      const error = new Error('Response body is not readable')
-      mergedOptions.onError?.(error)
-      throw error
-    }
-
-    mergedOptions.onStart?.()
-    mergedOptions.onPhaseChange?.('downloading')
-    const { signal, cleanup } = withTimeoutSignal(mergedOptions)
-    const streamOptions: DownloadOptions = {
-      ...mergedOptions,
-      timeout: 0,
-      ...(signal ? { signal } : {}),
-    }
-    let delegatedSave = false
-
-    try {
-      if (signal?.aborted) {
-        throw createAbortError()
-      }
-
-      const readableStream = toReadableStream(resolvedSource.source)
-      const saved = await saveStreamWithFileSystemAccess(
-        readableStream,
-        filename,
-        streamOptions,
-        resolvedSource.expectedBytes,
-      )
-      if (saved) {
-        return
-      }
-
-      const chunks: BlobPart[] = []
-      await consumeStream(
-        readableStream,
-        streamOptions,
-        resolvedSource.expectedBytes,
-        chunk => {
-          chunks.push(new Uint8Array(chunk))
-        },
-      )
-      delegatedSave = true
-      await this.saveAsync(
-        new Blob(chunks, { type: resolvedSource.mimeType }),
-        filename,
-        withoutStreamCallbacks(streamOptions),
-      )
-    } catch (error) {
-      const typedError = toError(error)
-      if (!delegatedSave) {
-        streamOptions.onPhaseChange?.(
-          typedError.name === 'AbortError' || signal?.aborted
-            ? 'aborted'
-            : 'error',
-        )
-        streamOptions.onError?.(typedError)
-      }
-      throw typedError
-    } finally {
-      cleanup()
-    }
   }
 }

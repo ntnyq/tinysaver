@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import {
-  saveAs,
-  saveAsAsync,
-  saveCanvas,
-  saveJSON,
-  saveStream,
-  saveText,
-} from '../src'
+import * as rootApi from '../src'
+import { saveAs, saveAsAsync, saveCanvas, saveJSON, saveText } from '../src'
+import { saveStream, StreamDownloader } from '../src/stream'
 
-describe('aPI exports', () => {
+describe('api exports', () => {
   it('should export saveAs function', () => {
     expect(saveAs).toBeInstanceOf(Function)
   })
@@ -29,7 +24,14 @@ describe('aPI exports', () => {
     expect(saveCanvas).toBeInstanceOf(Function)
   })
 
-  it('should export saveStream function', () => {
+  it('should keep stream APIs out of the default entry', () => {
+    expect(rootApi).not.toHaveProperty('saveStream')
+    expect(rootApi).not.toHaveProperty('StreamDownloader')
+    expect(rootApi.FileDownloader.prototype).not.toHaveProperty('saveStream')
+  })
+
+  it('should export stream APIs from the stream entry', () => {
     expect(saveStream).toBeInstanceOf(Function)
+    expect(StreamDownloader).toBeInstanceOf(Function)
   })
 })

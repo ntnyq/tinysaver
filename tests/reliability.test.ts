@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FileDownloader } from '../src/downloader'
+import { StreamDownloader } from '../src/stream'
 
 type TestFileSystemWindow = Omit<Window, 'showSaveFilePicker'> & {
   showSaveFilePicker?: (options?: { suggestedName?: string }) => Promise<{
@@ -126,7 +127,7 @@ describe('stream save reliability', () => {
   afterEach(resetDownloaderMocks)
 
   it('should cancel a pending stream read when aborted', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const controller = new AbortController()
     const cancel = vi.fn()
     const onError = vi.fn()
@@ -159,7 +160,7 @@ describe('stream save reliability', () => {
   })
 
   it('should apply timeout while reading a stream', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const cancel = vi.fn()
     const onError = vi.fn()
     const stream = new ReadableStream<Uint8Array>({ cancel })
@@ -176,7 +177,7 @@ describe('stream save reliability', () => {
   })
 
   it('should close an async iterator when aborted', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const controller = new AbortController()
     const closeIterator = vi.fn().mockResolvedValue({
       done: true,
@@ -204,7 +205,7 @@ describe('stream save reliability', () => {
   })
 
   it('should emit one lifecycle and report response content length', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const onStart = vi.fn()
     const onComplete = vi.fn()
     const onProgress = vi.fn()
@@ -238,7 +239,7 @@ describe('stream save reliability', () => {
   })
 
   it('should report stream read errors through lifecycle callbacks', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const onError = vi.fn()
     const phases: string[] = []
     const stream = new ReadableStream<Uint8Array>({
@@ -259,7 +260,7 @@ describe('stream save reliability', () => {
   })
 
   it('should write stream chunks directly with File System Access', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const write = vi.fn().mockResolvedValue(undefined)
     const close = vi.fn().mockResolvedValue(undefined)
     setSaveFilePicker(

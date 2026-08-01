@@ -1,3 +1,16 @@
-export * from './core'
-export * from './types'
-export * from './downloader'
+export {
+  downloader,
+  saveAs,
+  saveAsAsync,
+  saveCanvas,
+  saveJSON,
+  saveText,
+} from './core'
+export { FileDownloader } from './downloader'
+export type {
+  DownloadOptions,
+  DownloadPhase,
+  SaveCanvasOptions,
+  SaveJSONOptions,
+  SaveTextOptions,
+} from './types'

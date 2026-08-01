@@ -1,10 +1,8 @@
 import { FileDownloader } from './downloader'
 import type {
   DownloadOptions,
-  DownloadStreamSource,
   SaveCanvasOptions,
   SaveJSONOptions,
-  SaveStreamOptions,
   SaveTextOptions,
 } from './types'
 
@@ -89,20 +87,4 @@ export function saveCanvas(
   options?: SaveCanvasOptions,
 ): void {
   downloader.saveCanvas(canvas, filename, options)
-}
-
-/**
- * Consumes a readable source and saves its bytes as a file.
- *
- * @param source - Stream, response, or asynchronous byte iterable to consume.
- * @param filename - Suggested name for the downloaded file.
- * @param options - Stream MIME type and download behavior options.
- * @returns A promise that resolves after the stream has been saved.
- */
-export function saveStream(
-  source: DownloadStreamSource,
-  filename: string,
-  options?: SaveStreamOptions,
-): Promise<void> {
-  return downloader.saveStream(source, filename, options)
 }

@@ -26,14 +26,8 @@ pnpm add tinysaver
 ### ✨ Basic Usage
 
 ```ts
-import {
-  saveAs,
-  saveAsAsync,
-  saveText,
-  saveJSON,
-  saveCanvas,
-  saveStream,
-} from 'tinysaver'
+import { saveAs, saveAsAsync, saveText, saveJSON, saveCanvas } from 'tinysaver'
+import { saveStream } from 'tinysaver/stream'
 
 // Save a Blob
 saveAs(new Blob(['hello world'], { type: 'text/plain' }), 'hello-world.txt')
@@ -54,6 +48,37 @@ await saveAsAsync(new Blob(['hello async']), 'async.txt')
 // Save from stream/response
 const response = await fetch('/api/export')
 await saveStream(response, 'export.bin')
+```
+
+### 🌊 Stream Entry
+
+Stream support is published from a separate entry so applications that only
+use Blob, URL, text, JSON, or canvas downloads do not bundle the stream
+implementation.
+
+```ts
+import {
+  saveStream,
+  StreamDownloader,
+  type DownloadStreamSource,
+  type SaveStreamOptions,
+} from 'tinysaver/stream'
+
+await saveStream(await fetch('/api/export'), 'export.bin')
+
+const downloader = new StreamDownloader()
+await downloader.saveStream(source, 'export.bin', options)
+```
+
+`saveStream` is not exported from `tinysaver`, and `FileDownloader` no longer
+has a `saveStream` method. Migrate root imports and class usage as follows:
+
+```ts
+// Before
+import { FileDownloader, saveStream } from 'tinysaver'
+
+// After
+import { saveStream, StreamDownloader } from 'tinysaver/stream'
 ```
 
 ### ⚙️ With Options
@@ -171,6 +196,7 @@ Save HTML canvas as an image file.
 ### 🌊 `saveStream(source, filename, options?)`
 
 Save stream data (`ReadableStream`, `Response`, `AsyncIterable`) as a file.
+Import it from `tinysaver/stream`.
 
 When `preferFileSystemAccess` is enabled and supported, chunks are written
 directly to the selected file. Other browsers materialize the stream as a

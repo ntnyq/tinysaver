@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { FileDownloader } from '../src/downloader'
 import { addBom } from '../src/downloader/blob'
+import { StreamDownloader } from '../src/stream'
 
 describe('fileDownloader class', () => {
   it('should create instance', () => {
@@ -377,7 +378,7 @@ describe('fileDownloader class', () => {
   })
 
   it('saveStream should save readable stream content', async () => {
-    const downloader = new FileDownloader()
+    const downloader = new StreamDownloader()
     const saveSpy = vi
       .spyOn(downloader, 'saveAsync')
       .mockResolvedValue(undefined)
