@@ -94,6 +94,21 @@ describe('fileDownloader class', () => {
     createElement.mockRestore()
   })
 
+  it('should open a Blob in a new tab without forcing a download', () => {
+    const downloader = new FileDownloader()
+    const createElement = vi.spyOn(document, 'createElement')
+
+    downloader.save(new Blob(['content']), 'content.txt', {
+      disableClick: true,
+      openInNewTab: true,
+    })
+
+    const anchor = createElement.mock.results[0]?.value as HTMLAnchorElement
+    expect(anchor.download).toBe('')
+    expect(anchor.target).toBe('_blank')
+    createElement.mockRestore()
+  })
+
   it('saveText should forward blob with correct mime type and content', async () => {
     const downloader = new FileDownloader()
     const spy = vi.spyOn(downloader, 'save').mockReturnValue(undefined)
@@ -129,6 +144,36 @@ describe('fileDownloader class', () => {
     const [blob] = spy.mock.calls[0]!
     const text = await (blob as Blob).text()
     expect(text).toContain('\n\t"a": 1\n')
+  })
+
+  it('saveJSON should reject values that do not serialize to JSON', () => {
+    const downloader = new FileDownloader()
+    const onError = vi.fn()
+
+    expect(() =>
+      downloader.saveJSON(undefined, 'invalid.json', {
+        disableClick: true,
+        onError,
+      }),
+    ).toThrow('Failed to serialize data as JSON')
+
+    expect(onError).toHaveBeenCalledTimes(1)
+  })
+
+  it('saveJSON should report serialization exceptions', () => {
+    const downloader = new FileDownloader()
+    const onError = vi.fn()
+    const data: { self?: unknown } = {}
+    data.self = data
+
+    expect(() =>
+      downloader.saveJSON(data, 'circular.json', {
+        disableClick: true,
+        onError,
+      }),
+    ).toThrow('circular')
+
+    expect(onError).toHaveBeenCalledTimes(1)
   })
 
   it('saveCanvas should pass defaults into toBlob and save result', () => {

@@ -78,7 +78,9 @@ export interface DownloadOptions {
    */
   timeout?: number
   /**
-   * Prefer File System Access API when available.
+   * Prefer File System Access API for Blob and stream sources when available.
+   * URL sources use the browser download transport because file pickers require
+   * transient user activation before asynchronous network work.
    */
   preferFileSystemAccess?: boolean
   /**
@@ -121,6 +123,12 @@ export type SaveCanvasOptions = DownloadOptions & {
  * The MIME type defaults to the response header or binary data.
  */
 export type SaveStreamOptions = DownloadOptions & {
+  /**
+   * Maximum bytes buffered when File System Access is unavailable.
+   *
+   * @default 268_435_456
+   */
+  maxBufferBytes?: number
   mimeType?: string
 }
 

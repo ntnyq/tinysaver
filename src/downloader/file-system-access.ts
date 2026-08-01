@@ -51,8 +51,13 @@ export async function saveBlobWithFileSystemAccess(
   options.onPhaseChange?.('saving')
   const handle = await showSaveFilePicker({ suggestedName: name })
   const writable = await handle.createWritable()
-  await writable.write(blob)
-  await writable.close()
+  try {
+    await writable.write(blob)
+    await writable.close()
+  } catch (error) {
+    await writable.abort?.(error).catch(() => null)
+    throw error
+  }
   options.onPhaseChange?.('completed')
   options.onComplete?.()
   return true

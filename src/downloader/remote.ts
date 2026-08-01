@@ -152,7 +152,7 @@ export async function downloadRemoteUrl(
 
     requestOptions.onPhaseChange?.('probing')
     const isCorsEnabled = await dependencies.checkCors(url, requestOptions)
-    if (isCorsEnabled && requestOptions.onProgress) {
+    if (isCorsEnabled) {
       requestOptions.onPhaseChange?.('downloading')
       await dependencies.downloadWithProgress(url, name, requestOptions)
     } else {

@@ -23,7 +23,19 @@ export function createAbortError(): Error {
  * @returns The original error or an error containing its string representation.
  */
 export function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error))
+  if (error instanceof Error) {
+    return error
+  }
+
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const normalizedError = new Error(String(error.message))
+    if ('name' in error && typeof error.name === 'string') {
+      normalizedError.name = error.name
+    }
+    return normalizedError
+  }
+
+  return new Error(String(error))
 }
 
 /**

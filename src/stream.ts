@@ -1,4 +1,7 @@
-import { DEFAULT_DOWNLOAD_OPTIONS } from './constants'
+import {
+  DEFAULT_DOWNLOAD_OPTIONS,
+  DEFAULT_STREAM_MAX_BUFFER_BYTES,
+} from './constants'
 import { FileDownloader } from './downloader'
 import {
   createAbortError,
@@ -10,6 +13,7 @@ import {
   consumeStream,
   resolveStreamSource,
   toReadableStream,
+  type ResolvedStreamSource,
 } from './downloader/stream'
 import type {
   DownloadOptions,
@@ -24,6 +28,51 @@ function withoutStreamCallbacks(options: DownloadOptions): DownloadOptions {
   delete saveOptions.onProgress
   delete saveOptions.onStart
   return saveOptions
+}
+
+function createBufferLimitError(maxBufferBytes: number): RangeError {
+  return new RangeError(
+    `Stream exceeds maximum buffered size of ${maxBufferBytes} bytes`,
+  )
+}
+
+function resolveMaxBufferBytes(options?: SaveStreamOptions): number {
+  const maxBufferBytes =
+    options?.maxBufferBytes ?? DEFAULT_STREAM_MAX_BUFFER_BYTES
+  if (!Number.isSafeInteger(maxBufferBytes) || maxBufferBytes <= 0) {
+    throw new TypeError('maxBufferBytes must be a positive safe integer')
+  }
+  return maxBufferBytes
+}
+
+async function createBufferedBlob(
+  readableStream: ReadableStream<Uint8Array>,
+  resolvedSource: ResolvedStreamSource,
+  downloadOptions: DownloadOptions,
+  saveOptions?: SaveStreamOptions,
+): Promise<Blob> {
+  const maxBufferBytes = resolveMaxBufferBytes(saveOptions)
+  if (resolvedSource.expectedBytes > maxBufferBytes) {
+    const error = createBufferLimitError(maxBufferBytes)
+    await readableStream.cancel(error).catch(() => null)
+    throw error
+  }
+
+  const chunks: BlobPart[] = []
+  let bufferedBytes = 0
+  await consumeStream(
+    readableStream,
+    downloadOptions,
+    resolvedSource.expectedBytes,
+    chunk => {
+      if (bufferedBytes + chunk.byteLength > maxBufferBytes) {
+        throw createBufferLimitError(maxBufferBytes)
+      }
+      bufferedBytes += chunk.byteLength
+      chunks.push(new Uint8Array(chunk))
+    },
+  )
+  return new Blob(chunks, { type: resolvedSource.mimeType })
 }
 
 /**
@@ -80,18 +129,15 @@ export class StreamDownloader extends FileDownloader {
         return
       }
 
-      const chunks: BlobPart[] = []
-      await consumeStream(
+      const blob = await createBufferedBlob(
         readableStream,
+        resolvedSource,
         streamOptions,
-        resolvedSource.expectedBytes,
-        chunk => {
-          chunks.push(new Uint8Array(chunk))
-        },
+        options,
       )
       delegatedSave = true
       await this.saveAsync(
-        new Blob(chunks, { type: resolvedSource.mimeType }),
+        blob,
         filename,
         withoutStreamCallbacks(streamOptions),
       )

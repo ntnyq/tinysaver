@@ -106,7 +106,7 @@ saveAs(new Blob(['hello world'], { type: 'text/plain' }), 'hello-world.txt', {
   timeout: 10_000, // Abort automatically after 10s
   signal: abortController.signal, // Manual cancellation
   fetchOptions: { credentials: 'include' }, // For CORS probing request
-  preferFileSystemAccess: true, // Use showSaveFilePicker when supported
+  preferFileSystemAccess: true, // Use showSaveFilePicker for Blob/stream sources
   onPhaseChange(phase) {
     console.log(phase) // probing/downloading/saving/completed/error/aborted
   },
@@ -203,6 +203,14 @@ directly to the selected file. Other browsers materialize the stream as a
 browser-managed `Blob` before starting the download. Abort signals and timeouts
 cancel the active stream and propagate cancellation to its source.
 
+Blob fallback buffering is limited to 256 MiB by default to protect the browser
+from unbounded memory growth. Set `maxBufferBytes` to a positive byte limit when
+another bound is appropriate for the application.
+
+URL sources always use the browser download transport. File pickers require a
+transient user gesture and therefore cannot be opened after an asynchronous URL
+probe or transfer.
+
 ## ✅ Testing
 
 The library includes comprehensive unit tests covering:
@@ -220,6 +228,7 @@ The library includes comprehensive unit tests covering:
 ### Compatibility Matrix
 
 - Unit tests run in `jsdom` for deterministic behavior.
+- Browser tests run in Chromium, Firefox, and WebKit through Playwright.
 - Production builds target Chrome 87, Edge 88, Firefox 78, and Safari 14.
 - Downloads use the standard anchor `download` attribute and `URL` API.
 - IE-only and pre-modern browser fallbacks are intentionally excluded.
@@ -228,6 +237,7 @@ Run tests with:
 
 ```bash
 pnpm test
+pnpm test:browser
 ```
 
 ## 🙏 Credits

@@ -25,6 +25,11 @@ export const DEFAULT_TEXT_MIME = 'text/plain;charset=utf-8'
  */
 export const DEFAULT_JSON_MIME = 'application/json;charset=utf-8'
 
+/**
+ * Default maximum bytes buffered before saving a stream through a Blob.
+ */
+export const DEFAULT_STREAM_MAX_BUFFER_BYTES = 256 * 1024 * 1024
+
 export type DefaultDownloadOptions = Required<
   Omit<
     DownloadOptions,

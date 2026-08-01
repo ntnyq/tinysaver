@@ -40,9 +40,14 @@ export class FileDownloader {
     name: string,
     options: DownloadOptions,
   ): Promise<void> {
-    return downloadRemoteWithProgress(url, name, options, (blob, blobName) =>
-      this.saveBlob(blob, blobName, options, false),
-    )
+    return downloadRemoteWithProgress(url, name, options, (blob, blobName) => {
+      this.saveBlob(
+        blob,
+        blobName,
+        { ...options, preferFileSystemAccess: false },
+        false,
+      )
+    })
   }
 
   private handleRemoteUrl(
@@ -86,8 +91,11 @@ export class FileDownloader {
             }
           })
           .catch(error => {
-            options.onPhaseChange?.('error')
-            options.onError?.(toError(error))
+            const typedError = toError(error)
+            options.onPhaseChange?.(
+              typedError.name === 'AbortError' ? 'aborted' : 'error',
+            )
+            options.onError?.(typedError)
           })
         return
       }
@@ -101,7 +109,9 @@ export class FileDownloader {
       )
     } catch (error) {
       const typedError = toError(error)
-      options.onPhaseChange?.('error')
+      options.onPhaseChange?.(
+        typedError.name === 'AbortError' ? 'aborted' : 'error',
+      )
       options.onError?.(typedError)
       throw typedError
     }
@@ -152,7 +162,20 @@ export class FileDownloader {
     filename: string,
     options?: SaveJSONOptions,
   ): void {
-    const text = JSON.stringify(data, null, options?.space)
+    let text: string
+    try {
+      const serializedData = JSON.stringify(data, null, options?.space)
+      if (typeof serializedData !== 'string') {
+        throw new TypeError('Failed to serialize data as JSON')
+      }
+      text = serializedData
+    } catch (error) {
+      const typedError = toError(error)
+      options?.onPhaseChange?.('error')
+      options?.onError?.(typedError)
+      throw typedError
+    }
+
     const blob = new Blob([text], { type: DEFAULT_JSON_MIME })
     this.save(blob, filename, { ...options, autoBom: true })
   }
@@ -197,33 +220,46 @@ export class FileDownloader {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       let settled = false
+      const rejectOnce = (error: unknown): void => {
+        if (!settled) {
+          settled = true
+          reject(toError(error))
+        }
+      }
+      const resolveOnce = (): void => {
+        if (!settled) {
+          settled = true
+          resolve()
+        }
+      }
+      const invokeCallback = (callback: () => void): void => {
+        try {
+          callback()
+        } catch (error) {
+          rejectOnce(error)
+        }
+      }
       const wrappedOptions: DownloadOptions = {
         ...options,
-        onStart: () => options.onStart?.(),
+        onStart: () => invokeCallback(() => options.onStart?.()),
         onComplete: () => {
-          options.onComplete?.()
-          if (!settled) {
-            settled = true
-            resolve()
-          }
+          invokeCallback(() => options.onComplete?.())
+          resolveOnce()
         },
         onError: error => {
-          options.onError?.(error)
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
+          invokeCallback(() => options.onError?.(error))
         },
-        onPhaseChange: phase => options.onPhaseChange?.(phase),
+        onProgress: (loaded, total) =>
+          invokeCallback(() => options.onProgress?.(loaded, total)),
+        onPhaseChange: phase =>
+          invokeCallback(() => options.onPhaseChange?.(phase)),
       }
 
       try {
         this.save(blob, name, wrappedOptions)
       } catch (error) {
-        if (!settled) {
-          settled = true
-          reject(toError(error))
-        }
+        rejectOnce(error)
       }
     })
   }

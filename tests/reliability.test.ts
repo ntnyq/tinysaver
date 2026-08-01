@@ -259,6 +259,28 @@ describe('stream save reliability', () => {
     expect(phases).toStrictEqual(['downloading', 'error'])
   })
 
+  it('should reject a stream that exceeds the fallback buffer limit', async () => {
+    const downloader = new StreamDownloader()
+    const onError = vi.fn()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]))
+        controller.enqueue(new Uint8Array([3, 4]))
+        controller.close()
+      },
+    })
+
+    await expect(
+      downloader.saveStream(stream, 'stream.bin', {
+        disableClick: true,
+        maxBufferBytes: 3,
+        onError,
+      }),
+    ).rejects.toThrow('Stream exceeds maximum buffered size of 3 bytes')
+
+    expect(onError).toHaveBeenCalledTimes(1)
+  })
+
   it('should write stream chunks directly with File System Access', async () => {
     const downloader = new StreamDownloader()
     const write = vi.fn().mockResolvedValue(undefined)
@@ -291,6 +313,44 @@ describe('stream save reliability', () => {
 
 describe('blob normalization', () => {
   afterEach(resetDownloaderMocks)
+
+  it('should abort a File System Access write when it fails', async () => {
+    const downloader = new FileDownloader()
+    const abort = vi.fn().mockResolvedValue(undefined)
+    const close = vi.fn().mockResolvedValue(undefined)
+    const write = vi.fn().mockRejectedValue(new Error('disk full'))
+    const createWritable = vi.fn().mockResolvedValue({ abort, close, write })
+    setSaveFilePicker(
+      vi.fn().mockResolvedValue({
+        createWritable,
+      }),
+    )
+
+    await expect(
+      downloader.saveAsync(new Blob(['content']), 'content.txt', {
+        preferFileSystemAccess: true,
+      }),
+    ).rejects.toThrow('disk full')
+
+    expect(abort).toHaveBeenCalledTimes(1)
+  })
+
+  it('should report File System Access cancellation as aborted', async () => {
+    const downloader = new FileDownloader()
+    const phases: string[] = []
+    setSaveFilePicker(
+      vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError')),
+    )
+
+    await expect(
+      downloader.saveAsync(new Blob(['content']), 'content.txt', {
+        onPhaseChange: phase => phases.push(phase),
+        preferFileSystemAccess: true,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+
+    expect(phases).toStrictEqual(['saving', 'aborted'])
+  })
 
   it('should preserve autoBom with File System Access', async () => {
     const downloader = new FileDownloader()

@@ -49,11 +49,14 @@
     "release:check:full": "run-s format:check lint typecheck test",
     "release:version": "bumpp",
     "test": "vitest",
+    "test:browser": "run-s build test:browser:run",
+    "test:browser:run": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@ntnyq/tsconfig": "^3.1.0",
     "@ntnyq/utils": "^0.21.0",
+    "@playwright/test": "^1.62.1",
     "bumpp": "^12.1.1",
     "husky": "^9.1.7",
     "jsdom": "^30.0.1",

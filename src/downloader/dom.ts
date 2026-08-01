@@ -24,11 +24,12 @@ function createDownloadAnchor(
   options: DownloadOptions,
 ): HTMLAnchorElement {
   const anchor = document.createElement('a')
-  anchor.download = name
   anchor.rel = 'noopener'
 
   if (options.openInNewTab) {
     anchor.target = '_blank'
+  } else {
+    anchor.download = name
   }
 
   return anchor
@@ -115,11 +116,15 @@ export function saveWithDownloadAttribute(
     }
 
     if (options.disableClick) {
+      options.onPhaseChange?.('completed')
       options.onComplete?.()
       return
     }
 
-    scheduleAnchorClick(anchor, options, () => options.onComplete?.())
+    scheduleAnchorClick(anchor, options, () => {
+      options.onPhaseChange?.('completed')
+      options.onComplete?.()
+    })
     return
   }
 
