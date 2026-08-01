@@ -49,15 +49,15 @@
   },
   "devDependencies": {
     "@ntnyq/tsconfig": "^3.1.0",
-    "@ntnyq/utils": "^0.18.1",
-    "bumpp": "^11.1.0",
+    "@ntnyq/utils": "^0.21.0",
+    "bumpp": "^12.1.1",
     "husky": "^9.1.7",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "nano-staged": "^1.0.2",
-    "npm-run-all2": "^9.0.2",
-    "oxfmt": "^0.59.0",
-    "oxlint": "^1.74.0",
-    "tsdown": "^0.22.12",
+    "npm-run-all2": "^9.0.3",
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
+    "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
@@ -71,5 +71,5 @@
     "Firefox >= 78",
     "Safari >= 14"
   ],
-  "packageManager": "pnpm@11.15.1"
+  "packageManager": "pnpm@11.18.0"
 }

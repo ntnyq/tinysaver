@@ -27,6 +27,7 @@ function resetDownloaderMocks(): void {
 
 describe('remote save cancellation', () => {
   afterEach(resetDownloaderMocks)
+
   it('should reject an already-aborted remote save', async () => {
     const downloader = new FileDownloader()
     const controller = new AbortController()
@@ -123,6 +124,7 @@ describe('remote save cancellation', () => {
 
 describe('stream save reliability', () => {
   afterEach(resetDownloaderMocks)
+
   it('should cancel a pending stream read when aborted', async () => {
     const downloader = new FileDownloader()
     const controller = new AbortController()
@@ -288,6 +290,7 @@ describe('stream save reliability', () => {
 
 describe('blob normalization', () => {
   afterEach(resetDownloaderMocks)
+
   it('should preserve autoBom with File System Access', async () => {
     const downloader = new FileDownloader()
     const write = vi.fn().mockResolvedValue(undefined)
