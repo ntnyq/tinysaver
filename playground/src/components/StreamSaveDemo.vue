@@ -9,11 +9,13 @@ interface CsvPayload {
   totalBytes: number
 }
 
+const status = useSaveStatus()
+
 const rows = shallowRef(400)
 const filename = shallowRef('generated-records.csv')
+
 const abortController = shallowRef<AbortController | null>(null)
 const resolvedFilename = computed(() => filename.value.trim() || 'records.csv')
-const status = useSaveStatus()
 
 function createCsvPayload(rowCount: number): CsvPayload {
   const encoder = new TextEncoder()
@@ -40,6 +42,7 @@ function createCsvPayload(rowCount: number): CsvPayload {
 function createCsvResponse(csvPayload: CsvPayload): Response {
   let chunkIndex = 0
   let isCancelled = false
+
   const stream = new ReadableStream<Uint8Array>({
     cancel() {
       isCancelled = true
@@ -82,11 +85,11 @@ const payload = computed(() => createCsvPayload(rows.value))
 const sizeLabel = computed(() => formatBytes(payload.value.totalBytes))
 const isSaving = computed(() => status.phase.value === 'saving')
 
-function cancelSave(): void {
+function cancelSave() {
   abortController.value?.abort()
 }
 
-async function saveFile(): Promise<void> {
+async function saveFile() {
   const controller = new AbortController()
   abortController.value = controller
   status.start('Streaming CSV chunks')

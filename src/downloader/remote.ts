@@ -6,7 +6,7 @@ type SaveRemoteBlob = (
   blob: Blob,
   name: string,
   options: DownloadOptions,
-) => void
+) => Promise<void> | void
 
 /**
  * Dependencies used to probe and transfer a remote URL.
@@ -59,15 +59,15 @@ export async function checkCors(
  * @param name - Filename used when saving the received Blob.
  * @param options - Download progress, signal, and timeout options.
  * @param saveBlob - Callback that delegates the received Blob to the saver.
- * @returns A promise that settles after the transfer has been delegated.
+ * @returns A promise that settles after the received Blob has been saved.
  */
 export function downloadWithProgress(
   url: string,
   name: string,
   options: DownloadOptions,
   saveBlob: SaveRemoteBlob,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
+) {
+  return new Promise<void>((resolve, reject) => {
     const { signal, cleanup } = withTimeoutSignal(options)
     if (signal?.aborted) {
       cleanup()
@@ -105,8 +105,10 @@ export function downloadWithProgress(
       }
 
       try {
-        saveBlob(request.response, name, options)
-        resolve()
+        Promise.resolve(saveBlob(request.response, name, options)).then(
+          resolve,
+          reject,
+        )
       } catch (error) {
         reject(toError(error))
       }
@@ -131,13 +133,15 @@ export function downloadWithProgress(
  * @param name - Suggested filename for the download.
  * @param options - Download lifecycle and request options.
  * @param dependencies - Injectable remote transport operations.
+ * @returns A promise that settles after saving the Blob or a fallback click,
+ * and rejects when probing, transfer, callbacks, or cancellation fail.
  */
 export async function downloadRemoteUrl(
   url: string,
   name: string,
   options: DownloadOptions,
   dependencies: RemoteDownloadDependencies,
-): Promise<void> {
+) {
   const { signal, cleanup } = withTimeoutSignal(options)
   const requestOptions: DownloadOptions = {
     ...options,

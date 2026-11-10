@@ -8,7 +8,7 @@ interface BrowserWindow extends Window {
 
 const APP_ORIGIN = 'https://tinysaver.test'
 
-async function loadPackage(page: Page): Promise<void> {
+async function loadPackage(page: Page) {
   await page.route(`${APP_ORIGIN}/**`, async route => {
     const url = new URL(route.request().url())
     if (url.pathname === '/') {
@@ -64,6 +64,29 @@ test('downloads a Blob with the requested filename', async ({ page }) => {
   await page.evaluate(() => (window as unknown as BrowserWindow).savePromise)
 
   expect(download.suggestedFilename()).toBe('browser.txt')
+})
+
+test('keeps a Blob URL alive through a delayed download click', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const browserWindow = window as unknown as BrowserWindow
+    document.querySelector('#save')?.addEventListener('click', () => {
+      browserWindow.savePromise = browserWindow.tinysaver.saveAsAsync(
+        new Blob(['delayed content'], { type: 'text/plain' }),
+        'delayed.txt',
+        { clickDelay: 100, revokeTimeout: 5 },
+      )
+    })
+  })
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.click('#save')
+  const download = await downloadPromise
+  await page.evaluate(() => (window as unknown as BrowserWindow).savePromise)
+
+  expect(download.suggestedFilename()).toBe('delayed.txt')
+  expect(await download.failure()).toBeNull()
 })
 
 test('opens a Blob in a new tab when requested', async ({ page }) => {
@@ -124,4 +147,43 @@ test('downloads a CORS URL without opening a file picker', async ({ page }) => {
   expect(
     await page.evaluate(() => (window as unknown as BrowserWindow).pickerCalls),
   ).toBe(0)
+})
+
+test('cancels a delayed CORS download after its transfer completes', async ({
+  page,
+}) => {
+  await page.route('https://files.example/**', async route => {
+    await route.fulfill({
+      body: route.request().method() === 'HEAD' ? '' : 'remote content',
+      contentType: 'text/plain',
+      headers: { 'access-control-allow-origin': '*' },
+    })
+  })
+  let downloadCount = 0
+  page.on('download', () => {
+    downloadCount += 1
+  })
+  const result = await page.evaluate(async () => {
+    const browserWindow = window as unknown as BrowserWindow
+    const controller = new AbortController()
+    return browserWindow.tinysaver
+      .saveAsAsync('https://files.example/x.txt', 'x.txt', {
+        clickDelay: 100,
+        signal: controller.signal,
+        timeout: 5_000,
+        onPhaseChange(phase) {
+          if (phase === 'saving') {
+            setTimeout(() => controller.abort(), 5)
+          }
+        },
+      })
+      .then(
+        () => 'completed',
+        (error: unknown) =>
+          error instanceof Error ? error.name : String(error),
+      )
+  })
+
+  expect(result).toBe('AbortError')
+  expect(downloadCount).toBe(0)
 })

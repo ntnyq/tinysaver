@@ -17,6 +17,46 @@ export function createAbortError(): Error {
 }
 
 /**
+ * Waits for one operation without retaining abort listeners after it settles.
+ *
+ * The underlying operation may finish later when cancellation wins the race.
+ *
+ * @typeParam Value - Value resolved by the underlying operation.
+ * @param promise - Operation to observe without cancelling it directly.
+ * @param signal - Signal that rejects the wait with an `AbortError`.
+ * @returns A promise that preserves the operation's result or rejects on abort.
+ */
+export function waitWithSignal<Value>(
+  promise: Promise<Value>,
+  signal?: AbortSignal,
+): Promise<Value> {
+  if (!signal) {
+    return promise
+  }
+
+  return new Promise<Value>((resolve, reject) => {
+    const abort = () => {
+      signal.removeEventListener('abort', abort)
+      reject(createAbortError())
+    }
+    signal.addEventListener('abort', abort, { once: true })
+    promise.then(
+      value => {
+        signal.removeEventListener('abort', abort)
+        resolve(value)
+      },
+      error => {
+        signal.removeEventListener('abort', abort)
+        reject(error)
+      },
+    )
+    if (signal.aborted) {
+      abort()
+    }
+  })
+}
+
+/**
  * Normalizes an unknown thrown value into an `Error` instance.
  *
  * @param error - Value caught at a browser or stream boundary.

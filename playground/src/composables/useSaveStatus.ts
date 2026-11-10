@@ -11,31 +11,31 @@ export function useSaveStatus() {
   const phase = shallowRef<SavePhase>('idle')
   const progress = shallowRef<number | null>(null)
 
-  function start(nextMessage = 'Preparing file'): void {
+  function start(nextMessage = 'Preparing file') {
     message.value = nextMessage
     phase.value = 'saving'
     progress.value = null
   }
 
-  function complete(nextMessage = 'File saved'): void {
+  function complete(nextMessage = 'File saved') {
     message.value = nextMessage
     phase.value = 'saved'
     progress.value = 100
   }
 
-  function fail(error: unknown): void {
+  function fail(error: unknown) {
     message.value = toErrorMessage(error)
     phase.value = 'error'
     progress.value = null
   }
 
-  function markAborted(): void {
+  function markAborted() {
     message.value = 'Save cancelled'
     phase.value = 'aborted'
     progress.value = null
   }
 
-  function updateProgress(loadedBytes: number, totalBytes: number): void {
+  function updateProgress(loadedBytes: number, totalBytes: number) {
     if (totalBytes <= 0) {
       return
     }

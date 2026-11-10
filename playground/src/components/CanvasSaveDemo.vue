@@ -4,12 +4,14 @@ import { computed, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useSaveStatus } from '../composables/useSaveStatus'
 import DownloadStatus from './DownloadStatus.vue'
 
+const status = useSaveStatus()
+const canvasRef = useTemplateRef('canvasRef')
+
 const caption = shallowRef('Made to keep')
 const accent = shallowRef('#175cff')
 const filename = shallowRef('tinysaver-card.png')
+
 const resolvedFilename = computed(() => filename.value.trim() || 'canvas.png')
-const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
-const status = useSaveStatus()
 
 function fitCaption(
   context: CanvasRenderingContext2D,
@@ -27,8 +29,8 @@ function fitCaption(
   return fontSize
 }
 
-function drawPreview(): void {
-  const element = canvas.value
+function drawPreview() {
+  const element = canvasRef.value
   const context = element?.getContext('2d')
   if (!element || !context) {
     return
@@ -49,6 +51,7 @@ function drawPreview(): void {
 
   const displayText = caption.value.trim() || 'Untitled canvas'
   const fontSize = fitCaption(context, displayText, 850)
+
   context.font = `700 ${fontSize}px "Arial Rounded MT Bold", "Avenir Next", sans-serif`
   context.fillStyle = '#10231d'
   context.fillText(displayText, 142, 330)
@@ -64,15 +67,15 @@ function drawPreview(): void {
   context.fillText('A browser-native file, ready when you are.', 142, 480)
 }
 
-function saveFile(): void {
-  if (!canvas.value) {
+function saveFile() {
+  if (!canvasRef.value) {
     status.fail(new Error('Canvas is not ready'))
     return
   }
 
   status.start('Rendering PNG')
   try {
-    saveCanvas(canvas.value, resolvedFilename.value, {
+    saveCanvas(canvasRef.value, resolvedFilename.value, {
       onComplete: () => status.complete('Canvas image saved'),
       onError: status.fail,
       quality: 0.95,
@@ -103,7 +106,7 @@ watch([caption, accent], drawPreview, { flush: 'post' })
 
     <div class="file-preview p-2">
       <canvas
-        ref="canvas"
+        ref="canvasRef"
         class="block aspect-video w-full rounded-lg bg-canvas"
         width="1200"
         height="675"

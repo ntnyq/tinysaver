@@ -30,6 +30,9 @@ export const DEFAULT_JSON_MIME = 'application/json;charset=utf-8'
  */
 export const DEFAULT_STREAM_MAX_BUFFER_BYTES = 256 * 1024 * 1024
 
+/**
+ * Download defaults independent of request state and lifecycle callbacks.
+ */
 export type DefaultDownloadOptions = Required<
   Omit<
     DownloadOptions,

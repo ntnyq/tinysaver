@@ -76,7 +76,6 @@ has a `saveStream` method. Migrate root imports and class usage as follows:
 ```ts
 // Before
 import { FileDownloader, saveStream } from 'tinysaver'
-
 // After
 import { saveStream, StreamDownloader } from 'tinysaver/stream'
 ```
@@ -95,7 +94,7 @@ saveAs(new Blob(['hello world'], { type: 'text/plain' }), 'hello-world.txt', {
     console.log('Download started')
   },
   onComplete() {
-    console.log('Download completed')
+    console.log('Save workflow completed')
   },
   onError(err) {
     console.error('Download failed', err)
@@ -127,7 +126,7 @@ saveText('content', 'file.txt', {
     console.log(`Downloaded ${loaded}/${total} bytes`)
   },
   onComplete() {
-    // Called when download completes
+    // Browser download triggered, or File System Access writer closed
   },
   onError(error) {
     // Called when download fails
@@ -135,6 +134,26 @@ saveText('content', 'file.txt', {
   },
 })
 ```
+
+### Completion Semantics
+
+`onComplete`, the `completed` phase, and fulfillment of `saveAsAsync`,
+`FileDownloader.saveAsync`, or `saveStream` describe completion of tinysaver's
+workflow. The completion boundary depends on the transport:
+
+- **Browser download (`<a download>`):** the download click has been dispatched.
+  This does not confirm that the browser accepted the download or that the file
+  was fully downloaded or written to disk. Later cancellation or failure in the
+  browser's download manager cannot be observed through these callbacks or
+  promises. Stream fallback follows this contract after buffering the source
+  into a Blob.
+- **File System Access:** all writes and the writable stream's `close()` have
+  fulfilled. This confirms completion of the browser API's write workflow,
+  without guaranteeing a physical disk flush.
+
+With `openInNewTab` or the remote URL fallback, completion means that the
+navigation click has been dispatched; a download is not guaranteed. With
+`disableClick`, the anchor workflow completes without dispatching a click.
 
 ## 🌐 Browser Support
 
@@ -156,6 +175,10 @@ Save any Blob or URL as a file. Compatible with FileSaver.js `saveAs` API.
 ### ⏳ `saveAsAsync(blob, filename?, options?)`
 
 Promise-based version of `saveAs`, suitable for async workflows and explicit error handling.
+
+Promise fulfillment follows [Completion Semantics](#completion-semantics);
+browser downloads resolve after dispatching the download click, without waiting
+for the file to be written to disk.
 
 **Parameters:**
 
@@ -202,6 +225,10 @@ When `preferFileSystemAccess` is enabled and supported, chunks are written
 directly to the selected file. Other browsers materialize the stream as a
 browser-managed `Blob` before starting the download. Abort signals and timeouts
 cancel the active stream and propagate cancellation to its source.
+
+The returned promise follows [Completion Semantics](#completion-semantics): it
+resolves after the File System Access writer closes, or after the buffered Blob's
+download click is dispatched when using the browser download fallback.
 
 Blob fallback buffering is limited to 256 MiB by default to protect the browser
 from unbounded memory growth. Set `maxBufferBytes` to a positive byte limit when

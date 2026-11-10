@@ -38,13 +38,13 @@ describe('promise API', () => {
       public status = 200
       public statusText = 'OK'
 
-      public abort(): void {
+      public abort() {
         this.onabort?.()
       }
 
-      public open(): void {}
+      public open() {}
 
-      public send(): void {
+      public send() {
         send()
         this.onload?.()
       }
@@ -84,13 +84,13 @@ describe('promise API', () => {
       public status = 200
       public statusText = 'OK'
 
-      public abort(): void {
+      public abort() {
         this.onabort?.()
       }
 
-      public open(): void {}
+      public open() {}
 
-      public send(): void {
+      public send() {
         this.onload?.()
       }
     }
@@ -153,13 +153,13 @@ describe('promise API', () => {
       public status = 0
       public statusText = ''
 
-      public abort(): void {
+      public abort() {
         this.onabort?.()
       }
 
-      public open(): void {}
+      public open() {}
 
-      public send(): void {
+      public send() {
         this.onerror?.()
       }
     }

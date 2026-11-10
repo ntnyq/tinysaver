@@ -3,7 +3,7 @@ import type {
   DownloadStreamSource,
   SaveStreamOptions,
 } from '../types'
-import { createAbortError } from './abort'
+import { createAbortError, waitWithSignal } from './abort'
 
 const DEFAULT_BINARY_MIME = 'application/octet-stream'
 
@@ -72,13 +72,18 @@ export function toReadableStream(
   }
 
   const iterator = source[Symbol.asyncIterator]()
+  let cancelled = false
   return new ReadableStream<Uint8Array>({
     async cancel() {
+      cancelled = true
       await iterator.return?.()
     },
     async pull(controller) {
       try {
         const { done, value } = await iterator.next()
+        if (cancelled) {
+          return
+        }
         if (done) {
           controller.close()
         } else {
@@ -98,47 +103,22 @@ export function toReadableStream(
  * @param options - Signal and progress callback options.
  * @param expectedBytes - Expected total byte count, or zero when unknown.
  * @param write - Sequential destination invoked for every chunk.
+ * @returns A promise that resolves after every chunk is written, or rejects on
+ * source, destination, callback, or cancellation errors.
  */
 export async function consumeStream(
   stream: ReadableStream<Uint8Array>,
   options: DownloadOptions,
   expectedBytes: number,
   write: (chunk: Uint8Array) => Promise<void> | void,
-): Promise<void> {
+) {
   const reader = stream.getReader()
   const signal = options.signal
-  if (signal?.aborted) {
-    const error = createAbortError()
-    await reader.cancel(error).catch(() => null)
-    reader.releaseLock()
-    throw error
-  }
-
   let loadedBytes = 0
-  let cancellation: Promise<unknown> | null = null
-  let rejectAbort: ((error: Error) => void) | null = null
-  const abortPromise = signal
-    ? new Promise<never>((_resolve, reject) => {
-        rejectAbort = reject
-      })
-    : null
-  const abortStream = () => {
-    const error = createAbortError()
-    rejectAbort?.(error)
-    cancellation = reader.cancel(error).catch(() => null)
-  }
-  const waitFor = <Value>(promise: Promise<Value>): Promise<Value> =>
-    abortPromise ? Promise.race([promise, abortPromise]) : promise
-  const consumeNext = async (): Promise<void> => {
-    const { done, value } = await waitFor(reader.read())
-    if (done) {
-      return
-    }
 
-    await waitFor(Promise.resolve(write(value)))
-    loadedBytes += value.byteLength
-    options.onProgress?.(loadedBytes, expectedBytes)
-    return consumeNext()
+  const abortStream = () => {
+    // A source's cancel hook can remain pending indefinitely.
+    reader.cancel(createAbortError()).catch(() => null)
   }
 
   signal?.addEventListener('abort', abortStream, { once: true })
@@ -146,16 +126,34 @@ export async function consumeStream(
   try {
     if (signal?.aborted) {
       abortStream()
+      throw createAbortError()
     }
-    await consumeNext()
+    while (true) {
+      // Sequential reads and writes preserve backpressure and bounded memory.
+      // oxlint-disable-next-line no-await-in-loop
+      const { done, value } = await waitWithSignal(reader.read(), signal)
+      if (signal?.aborted) {
+        throw createAbortError()
+      }
+      if (done) {
+        return
+      }
+
+      // oxlint-disable-next-line no-await-in-loop
+      await waitWithSignal(Promise.resolve(write(value)), signal)
+      if (signal?.aborted) {
+        throw createAbortError()
+      }
+      loadedBytes += value.byteLength
+      options.onProgress?.(loadedBytes, expectedBytes)
+    }
   } catch (error) {
     if (!signal?.aborted) {
-      await reader.cancel(error).catch(() => null)
+      reader.cancel(error).catch(() => null)
     }
     throw signal?.aborted ? createAbortError() : error
   } finally {
     signal?.removeEventListener('abort', abortStream)
-    await cancellation
     reader.releaseLock()
   }
 }

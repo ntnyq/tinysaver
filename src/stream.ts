@@ -54,7 +54,7 @@ async function createBufferedBlob(
   const maxBufferBytes = resolveMaxBufferBytes(saveOptions)
   if (resolvedSource.expectedBytes > maxBufferBytes) {
     const error = createBufferLimitError(maxBufferBytes)
-    await readableStream.cancel(error).catch(() => null)
+    readableStream.cancel(error).catch(() => null)
     throw error
   }
 
@@ -82,16 +82,21 @@ export class StreamDownloader extends FileDownloader {
   /**
    * Consumes a readable source and saves its bytes as a file.
    *
+   * Resolves after the File System Access writer closes, or after dispatching
+   * the buffered Blob's download click. Browser downloads do not confirm that
+   * the file was written to disk.
+   * See {@link DownloadOptions.onComplete} for completion semantics and exceptions.
+   *
    * @param source - Stream, response, or asynchronous byte iterable to consume.
    * @param filename - Suggested filename for the download.
    * @param options - Stream MIME type and download behavior options.
-   * @returns A promise that resolves after all bytes have been saved.
+   * @returns A promise that resolves when the save workflow completes.
    */
   public async saveStream(
     source: DownloadStreamSource,
     filename: string,
     options?: SaveStreamOptions,
-  ): Promise<void> {
+  ) {
     const mergedOptions: DownloadOptions = {
       ...DEFAULT_DOWNLOAD_OPTIONS,
       ...options,
@@ -106,19 +111,21 @@ export class StreamDownloader extends FileDownloader {
     mergedOptions.onStart?.()
     mergedOptions.onPhaseChange?.('downloading')
     const { signal, cleanup } = withTimeoutSignal(mergedOptions)
-    const streamOptions: DownloadOptions = {
+    const streamOptions: SaveStreamOptions = {
       ...mergedOptions,
+      mimeType: resolvedSource.mimeType,
       timeout: 0,
       ...(signal ? { signal } : {}),
     }
     let delegatedSave = false
+    let readableStream: ReadableStream<Uint8Array> | undefined
 
     try {
+      readableStream = toReadableStream(resolvedSource.source)
       if (signal?.aborted) {
         throw createAbortError()
       }
 
-      const readableStream = toReadableStream(resolvedSource.source)
       const saved = await saveStreamWithFileSystemAccess(
         readableStream,
         filename,
@@ -143,6 +150,9 @@ export class StreamDownloader extends FileDownloader {
       )
     } catch (error) {
       const typedError = toError(error)
+      if (readableStream && !readableStream.locked) {
+        readableStream.cancel(typedError).catch(() => null)
+      }
       if (!delegatedSave) {
         streamOptions.onPhaseChange?.(
           typedError.name === 'AbortError' || signal?.aborted
@@ -163,15 +173,20 @@ const streamDownloader = new StreamDownloader()
 /**
  * Consumes a readable source and saves its bytes as a file.
  *
+ * Resolves after the File System Access writer closes, or after dispatching
+ * the buffered Blob's download click. Browser downloads do not confirm that
+ * the file was written to disk.
+ * See {@link DownloadOptions.onComplete} for completion semantics and exceptions.
+ *
  * @param source - Stream, response, or asynchronous byte iterable to consume.
  * @param filename - Suggested filename for the download.
  * @param options - Stream MIME type and download behavior options.
- * @returns A promise that resolves after the stream has been saved.
+ * @returns A promise that resolves when the save workflow completes.
  */
 export function saveStream(
   source: DownloadStreamSource,
   filename: string,
   options?: SaveStreamOptions,
-): Promise<void> {
+) {
   return streamDownloader.saveStream(source, filename, options)
 }

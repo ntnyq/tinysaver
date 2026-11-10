@@ -2,6 +2,7 @@
  * Lifecycle phase reported while a download is in progress.
  *
  * Use {@link DownloadOptions.onPhaseChange} to observe phase changes.
+ * The `completed` phase follows {@link DownloadOptions.onComplete} semantics.
  */
 export type DownloadPhase =
   | 'probing'
@@ -40,13 +41,21 @@ export interface DownloadOptions {
    */
   openInNewTab?: boolean
   /**
-   * Custom timeout for revoking object URL (in milliseconds), default to 40 seconds
+   * Delay before revoking an object URL after the anchor workflow settles
+   * (in milliseconds), default to 40 seconds.
    *
    * @default 40_000
    */
   revokeTimeout?: number
   /**
-   * Callback function when download completes
+   * Called when the library's save workflow completes.
+   *
+   * For browser downloads, the anchor click has been dispatched; this does not
+   * confirm browser acceptance, download completion, or a file written to disk.
+   * For File System Access, all writes and the writer's `close()` have fulfilled;
+   * this does not guarantee a physical disk flush.
+   * Navigation paths only dispatch a click, and `disableClick` skips the click
+   * in anchor workflows. Later browser download failures cannot be observed.
    */
   onComplete?: () => void
   /**
@@ -65,7 +74,8 @@ export interface DownloadOptions {
    */
   onStart?: () => void
   /**
-   * Abort signal used for remote downloads and stream reads
+   * Abort signal used for file target creation, writes, stream reads, and
+   * remote downloads. Anchor clicks can be cancelled before dispatch.
    */
   signal?: AbortSignal
   /**
@@ -85,6 +95,8 @@ export interface DownloadOptions {
   preferFileSystemAccess?: boolean
   /**
    * Status callback for download lifecycle.
+   * The `completed` phase follows {@link DownloadOptions.onComplete} semantics.
+   * @param phase - Current phase of the download workflow.
    */
   onPhaseChange?: (phase: DownloadPhase) => void
 }

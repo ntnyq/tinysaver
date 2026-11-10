@@ -12,7 +12,7 @@ const characterCount = computed(() => text.value.length)
 const resolvedFilename = computed(() => filename.value.trim() || 'note.txt')
 const status = useSaveStatus()
 
-function saveFile(): void {
+function saveFile() {
   status.start('Preparing text file')
   try {
     saveText(text.value, resolvedFilename.value, {

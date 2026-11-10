@@ -13,14 +13,14 @@ type TestFileSystemWindow = Omit<Window, 'showSaveFilePicker'> & {
 
 function setSaveFilePicker(
   picker: NonNullable<TestFileSystemWindow['showSaveFilePicker']>,
-): void {
+) {
   Object.defineProperty(window, 'showSaveFilePicker', {
     configurable: true,
     value: picker,
   })
 }
 
-function resetDownloaderMocks(): void {
+function resetDownloaderMocks() {
   delete (window as TestFileSystemWindow).showSaveFilePicker
   vi.restoreAllMocks()
   vi.unstubAllGlobals()

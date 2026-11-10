@@ -36,7 +36,7 @@ const preview = computed(() =>
     : 'Fix the JSON to enable saving.',
 )
 
-function saveFile(): void {
+function saveFile() {
   if (!parsedJson.value.valid) {
     status.fail(new SyntaxError(parsedJson.value.message))
     return

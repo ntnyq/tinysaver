@@ -24,12 +24,17 @@ export function saveAs(
   blob: string | Blob,
   filename?: string,
   options?: DownloadOptions,
-): void {
+) {
   downloader.save(blob, filename, options)
 }
 
 /**
  * Saves a Blob or URL and resolves when the download workflow completes.
+ *
+ * Browser downloads resolve after dispatching the anchor click, without
+ * confirming that the file was written to disk. File System Access resolves
+ * after all writes and the writer's `close()` fulfill.
+ * See {@link DownloadOptions.onComplete} for completion semantics and exceptions.
  *
  * @param blob - Blob object or URL string to save.
  * @param filename - Suggested name for the downloaded file.
@@ -40,7 +45,7 @@ export function saveAsAsync(
   blob: string | Blob,
   filename?: string,
   options?: DownloadOptions,
-): Promise<void> {
+) {
   return downloader.saveAsync(blob, filename, options)
 }
 
@@ -55,7 +60,7 @@ export function saveText(
   text: string,
   filename: string,
   options?: SaveTextOptions,
-): void {
+) {
   downloader.saveText(text, filename, options)
 }
 
@@ -70,7 +75,7 @@ export function saveJSON(
   data: unknown,
   filename: string,
   options?: SaveJSONOptions,
-): void {
+) {
   downloader.saveJSON(data, filename, options)
 }
 
@@ -85,6 +90,6 @@ export function saveCanvas(
   canvas: HTMLCanvasElement,
   filename: string,
   options?: SaveCanvasOptions,
-): void {
+) {
   downloader.saveCanvas(canvas, filename, options)
 }

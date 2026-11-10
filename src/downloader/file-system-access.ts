@@ -1,10 +1,21 @@
 import type { DownloadOptions } from '../types'
+import { createAbortError, waitWithSignal } from './abort'
+
+/**
+ * File writer operations used by the Blob and stream download transports.
+ */
 export interface FileSystemWritable {
   abort?: (reason?: unknown) => Promise<void>
   close: () => Promise<void>
   write: (data: Blob | BufferSource | string) => Promise<void>
 }
 
+/**
+ * Browser picker that opens a destination file for writing.
+ *
+ * @param options - Suggested filename and accepted file types shown by the picker.
+ * @returns A promise for a file handle, or a rejection if selection fails.
+ */
 export type SaveFilePicker = (options?: {
   suggestedName?: string
   types?: Array<{ description?: string; accept: Record<string, string[]> }>
@@ -16,6 +27,12 @@ type FileSystemAccessWindow = Omit<Window, 'showSaveFilePicker'> & {
   showSaveFilePicker?: SaveFilePicker
 }
 
+/**
+ * Resolves the preferred file picker and binds it to its browser window.
+ *
+ * @param options - Download options controlling File System Access preference.
+ * @returns The bound picker, or `null` when it is unavailable or not preferred.
+ */
 export function getSaveFilePicker(
   options: DownloadOptions,
 ): SaveFilePicker | null {
@@ -28,6 +45,42 @@ export function getSaveFilePicker(
   }
 
   return browserWindow.showSaveFilePicker.bind(browserWindow)
+}
+
+/**
+ * Opens a file destination while observing cancellation at each creation step.
+ *
+ * A writer returned after cancellation is aborted without delaying rejection.
+ *
+ * @param picker - Browser picker bound to its window.
+ * @param name - Suggested filename shown in the picker.
+ * @param signal - Cancellation signal for destination creation.
+ * @returns The writable destination ready to receive file content.
+ */
+export async function createFileSystemWritable(
+  picker: SaveFilePicker,
+  name: string,
+  signal?: AbortSignal,
+): Promise<FileSystemWritable> {
+  if (signal?.aborted) {
+    throw createAbortError()
+  }
+  const handle = await waitWithSignal(picker({ suggestedName: name }), signal)
+  if (signal?.aborted) {
+    throw createAbortError()
+  }
+
+  const pendingWritable = handle.createWritable()
+  try {
+    const writable = await waitWithSignal(pendingWritable, signal)
+    if (signal?.aborted) {
+      throw createAbortError()
+    }
+    return writable
+  } catch (error) {
+    pendingWritable.then(writable => writable.abort?.(error)).catch(() => null)
+    throw error
+  }
 }
 
 /**
@@ -49,13 +102,22 @@ export async function saveBlobWithFileSystemAccess(
   }
 
   options.onPhaseChange?.('saving')
-  const handle = await showSaveFilePicker({ suggestedName: name })
-  const writable = await handle.createWritable()
+  const writable = await createFileSystemWritable(
+    showSaveFilePicker,
+    name,
+    options.signal,
+  )
   try {
-    await writable.write(blob)
-    await writable.close()
+    if (options.signal?.aborted) {
+      throw createAbortError()
+    }
+    await waitWithSignal(writable.write(blob), options.signal)
+    if (options.signal?.aborted) {
+      throw createAbortError()
+    }
+    await waitWithSignal(writable.close(), options.signal)
   } catch (error) {
-    await writable.abort?.(error).catch(() => null)
+    void writable.abort?.(error).catch(() => null)
     throw error
   }
   options.onPhaseChange?.('completed')

@@ -1,7 +1,20 @@
-import { defineConfig, presetWind3 } from 'unocss'
+import {
+  defineConfig,
+  transformerDirectives,
+  transformerVariantGroup,
+  presetIcons,
+  presetWind3,
+} from 'unocss'
 
 export default defineConfig({
-  presets: [presetWind3()],
+  presets: [
+    presetWind3(),
+    presetIcons({
+      autoInstall: true,
+      extraProperties: {},
+      scale: 1.2,
+    }),
+  ],
   shortcuts: {
     'action-button':
       'inline-flex min-h-11 items-center justify-center rounded-[0.6rem] border-2 border-primary bg-primary px-4 text-sm font-750 text-white transition-[transform,box-shadow,background-color,border-color] duration-200 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:border-ink hover:bg-primaryDark hover:shadow-[3px_3px_0_#10231d] active:translate-x-0 active:translate-y-0 active:shadow-none focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-primary/30 disabled:cursor-not-allowed disabled:transform-none disabled:border-line disabled:bg-line disabled:text-muted disabled:shadow-none',
@@ -37,4 +50,5 @@ export default defineConfig({
       mono: "'SFMono-Regular', Consolas, monospace",
     },
   },
+  transformers: [transformerDirectives(), transformerVariantGroup()],
 })

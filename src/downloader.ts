@@ -39,22 +39,18 @@ export class FileDownloader {
     url: string,
     name: string,
     options: DownloadOptions,
-  ): Promise<void> {
-    return downloadRemoteWithProgress(url, name, options, (blob, blobName) => {
+  ) {
+    return downloadRemoteWithProgress(url, name, options, (blob, blobName) =>
       this.saveBlob(
         blob,
         blobName,
         { ...options, preferFileSystemAccess: false },
         false,
-      )
-    })
+      ),
+    )
   }
 
-  private handleRemoteUrl(
-    url: string,
-    name: string,
-    options: DownloadOptions,
-  ): Promise<void> {
+  private handleRemoteUrl(url: string, name: string, options: DownloadOptions) {
     return downloadRemoteUrl(url, name, options, {
       checkCors: (remoteUrl, remoteOptions) =>
         this.checkCors(remoteUrl, remoteOptions),
@@ -68,53 +64,40 @@ export class FileDownloader {
     name: string,
     options: DownloadOptions,
     emitStart = true,
-  ): void {
+  ): Promise<void> | void {
     const finalName = resolveFilename(blob, name)
 
-    try {
-      if (emitStart) {
-        options.onStart?.()
-      }
-      const normalizedBlob = isString(blob) ? blob : addBom(blob, options)
+    if (emitStart) {
+      options.onStart?.()
+    }
+    const normalizedBlob = isString(blob) ? blob : addBom(blob, options)
 
-      if (!isString(normalizedBlob) && options.preferFileSystemAccess) {
-        void saveBlobWithFileSystemAccess(normalizedBlob, finalName, options)
-          .then(saved => {
-            if (!saved) {
-              saveWithDownloadAttribute(
-                normalizedBlob,
-                finalName,
-                options,
-                (url, filename, remoteOptions) =>
-                  this.handleRemoteUrl(url, filename, remoteOptions),
-              )
-            }
-          })
-          .catch(error => {
-            const typedError = toError(error)
-            options.onPhaseChange?.(
-              typedError.name === 'AbortError' ? 'aborted' : 'error',
-            )
-            options.onError?.(typedError)
-          })
-        return
-      }
-
-      saveWithDownloadAttribute(
+    if (!isString(normalizedBlob) && options.preferFileSystemAccess) {
+      return saveBlobWithFileSystemAccess(
         normalizedBlob,
         finalName,
         options,
-        (url, filename, remoteOptions) =>
-          this.handleRemoteUrl(url, filename, remoteOptions),
-      )
-    } catch (error) {
-      const typedError = toError(error)
-      options.onPhaseChange?.(
-        typedError.name === 'AbortError' ? 'aborted' : 'error',
-      )
-      options.onError?.(typedError)
-      throw typedError
+      ).then(saved => {
+        if (saved) {
+          return
+        }
+        return saveWithDownloadAttribute(
+          normalizedBlob,
+          finalName,
+          options,
+          (url, filename, remoteOptions) =>
+            this.handleRemoteUrl(url, filename, remoteOptions),
+        )
+      })
     }
+
+    return saveWithDownloadAttribute(
+      normalizedBlob,
+      finalName,
+      options,
+      (url, filename, remoteOptions) =>
+        this.handleRemoteUrl(url, filename, remoteOptions),
+    )
   }
 
   /**
@@ -128,9 +111,21 @@ export class FileDownloader {
     blob: string | Blob,
     name?: string,
     options: DownloadOptions = {},
-  ): void {
+  ) {
     const mergedOptions = { ...this.defaultOptions, ...options }
-    this.saveBlob(blob, name ?? '', mergedOptions)
+    const reportError = (error: unknown) => {
+      const typedError = toError(error)
+      mergedOptions.onPhaseChange?.(
+        typedError.name === 'AbortError' ? 'aborted' : 'error',
+      )
+      mergedOptions.onError?.(typedError)
+      return typedError
+    }
+    try {
+      this.saveBlob(blob, name ?? '', mergedOptions)?.catch(reportError)
+    } catch (error) {
+      throw reportError(error)
+    }
   }
 
   /**
@@ -140,11 +135,7 @@ export class FileDownloader {
    * @param filename - Suggested filename for the download.
    * @param options - Text MIME type and download behavior options.
    */
-  public saveText(
-    text: string,
-    filename: string,
-    options?: SaveTextOptions,
-  ): void {
+  public saveText(text: string, filename: string, options?: SaveTextOptions) {
     const mimeType = options?.mimeType || DEFAULT_TEXT_MIME
     const blob = new Blob([text], { type: mimeType })
     this.save(blob, filename, { ...options, autoBom: true })
@@ -157,11 +148,7 @@ export class FileDownloader {
    * @param filename - Suggested filename for the download.
    * @param options - JSON formatting and download behavior options.
    */
-  public saveJSON(
-    data: unknown,
-    filename: string,
-    options?: SaveJSONOptions,
-  ): void {
+  public saveJSON(data: unknown, filename: string, options?: SaveJSONOptions) {
     let text: string
     try {
       const serializedData = JSON.stringify(data, null, options?.space)
@@ -191,7 +178,7 @@ export class FileDownloader {
     canvas: HTMLCanvasElement,
     filename: string,
     options?: SaveCanvasOptions,
-  ): void {
+  ) {
     canvas.toBlob(
       blob => {
         if (blob) {
@@ -208,6 +195,11 @@ export class FileDownloader {
   /**
    * Saves a Blob or URL and resolves after its download workflow completes.
    *
+   * Browser downloads resolve after dispatching the anchor click, without
+   * confirming that the file was written to disk. File System Access resolves
+   * after all writes and the writer's `close()` fulfill.
+   * See {@link DownloadOptions.onComplete} for completion semantics and exceptions.
+   *
    * @param blob - Blob object or URL string to save.
    * @param name - Suggested filename for the download.
    * @param options - Download lifecycle and browser behavior options.
@@ -217,22 +209,22 @@ export class FileDownloader {
     blob: string | Blob,
     name?: string,
     options: DownloadOptions = {},
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
+  ) {
+    return new Promise<void>((resolve, reject) => {
       let settled = false
-      const rejectOnce = (error: unknown): void => {
+      const rejectOnce = (error: unknown) => {
         if (!settled) {
           settled = true
           reject(toError(error))
         }
       }
-      const resolveOnce = (): void => {
+      const resolveOnce = () => {
         if (!settled) {
           settled = true
           resolve()
         }
       }
-      const invokeCallback = (callback: () => void): void => {
+      const invokeCallback = (callback: () => void) => {
         try {
           callback()
         } catch (error) {

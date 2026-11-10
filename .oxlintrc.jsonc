@@ -134,6 +134,7 @@
     ],
     "max-params": ["warn", 4],
     "max-statements": ["warn", { "max": 30 }],
+    "one-var": ["warn", "never"],
   },
   "overrides": [
     {

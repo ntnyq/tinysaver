@@ -3,13 +3,7 @@ import { DEFAULT_DOWNLOAD_OPTIONS } from '../constants'
 import type { DownloadOptions } from '../types'
 import { createAbortError } from './abort'
 
-type RemoteUrlDownload = (
-  url: string,
-  name: string,
-  options: DownloadOptions,
-) => Promise<void>
-
-function clickElement(element: HTMLElement): void {
+function clickElement(element: HTMLElement) {
   const event = new MouseEvent('click', {
     view: window,
     bubbles: true,
@@ -17,34 +11,6 @@ function clickElement(element: HTMLElement): void {
   })
 
   element.dispatchEvent(event)
-}
-
-function createDownloadAnchor(
-  name: string,
-  options: DownloadOptions,
-): HTMLAnchorElement {
-  const anchor = document.createElement('a')
-  anchor.rel = 'noopener'
-
-  if (options.openInNewTab) {
-    anchor.target = '_blank'
-  } else {
-    anchor.download = name
-  }
-
-  return anchor
-}
-
-function scheduleAnchorClick(
-  anchor: HTMLAnchorElement,
-  options: DownloadOptions,
-  onClick: () => void,
-): void {
-  setTimeout(() => {
-    clickElement(anchor)
-    anchor.remove()
-    onClick()
-  }, options.clickDelay || DEFAULT_DOWNLOAD_OPTIONS.clickDelay)
 }
 
 /**
@@ -57,7 +23,7 @@ function scheduleAnchorClick(
 export function clickAfterDelay(
   element: HTMLElement,
   options: DownloadOptions,
-): Promise<void> {
+) {
   const signal = options.signal
   if (signal?.aborted) {
     element.remove()
@@ -92,6 +58,36 @@ export function clickAfterDelay(
     })
 }
 
+type RemoteUrlDownload = (
+  url: string,
+  name: string,
+  options: DownloadOptions,
+) => Promise<void>
+
+function createDownloadAnchor(
+  name: string,
+  options: DownloadOptions,
+): HTMLAnchorElement {
+  const anchor = document.createElement('a')
+  anchor.rel = 'noopener'
+
+  if (options.openInNewTab) {
+    anchor.target = '_blank'
+  } else {
+    anchor.download = name
+  }
+
+  return anchor
+}
+
+function scheduleAnchorClick(
+  anchor: HTMLAnchorElement,
+  options: DownloadOptions,
+  onClick: () => void,
+) {
+  return clickAfterDelay(anchor, options).then(onClick)
+}
+
 /**
  * Saves a Blob or URL through an HTML anchor download workflow.
  *
@@ -105,14 +101,18 @@ export function saveWithDownloadAttribute(
   name: string,
   options: DownloadOptions,
   downloadRemoteUrl: RemoteUrlDownload,
-): void {
+) {
+  if (options.signal?.aborted) {
+    throw createAbortError()
+  }
   const anchor = createDownloadAnchor(name, options)
 
   if (isString(source)) {
     anchor.href = source
     if (anchor.origin !== location.origin) {
-      void downloadRemoteUrl(source, name, options).catch(() => null)
-      return
+      return downloadRemoteUrl(source, name, options).catch(() => {
+        // The remote workflow already reported this lifecycle error.
+      })
     }
 
     if (options.disableClick) {
@@ -121,28 +121,34 @@ export function saveWithDownloadAttribute(
       return
     }
 
-    scheduleAnchorClick(anchor, options, () => {
+    return scheduleAnchorClick(anchor, options, () => {
       options.onPhaseChange?.('completed')
       options.onComplete?.()
     })
-    return
   }
 
   options.onPhaseChange?.('saving')
-  anchor.href = URL.createObjectURL(source)
-  setTimeout(
-    () => URL.revokeObjectURL(anchor.href),
-    options.revokeTimeout || DEFAULT_DOWNLOAD_OPTIONS.revokeTimeout,
-  )
+  const objectUrl = URL.createObjectURL(source)
+  anchor.href = objectUrl
+  const scheduleRevoke = () => {
+    setTimeout(
+      () => URL.revokeObjectURL(objectUrl),
+      options.revokeTimeout || DEFAULT_DOWNLOAD_OPTIONS.revokeTimeout,
+    )
+  }
 
   if (options.disableClick) {
+    scheduleRevoke()
+    if (options.signal?.aborted) {
+      throw createAbortError()
+    }
     options.onPhaseChange?.('completed')
     options.onComplete?.()
     return
   }
 
-  scheduleAnchorClick(anchor, options, () => {
+  return scheduleAnchorClick(anchor, options, () => {
     options.onPhaseChange?.('completed')
     options.onComplete?.()
-  })
+  }).finally(scheduleRevoke)
 }
