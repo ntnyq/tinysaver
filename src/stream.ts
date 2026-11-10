@@ -9,6 +9,7 @@ import {
   withTimeoutSignal,
 } from './downloader/abort'
 import { saveStreamWithFileSystemAccess } from './downloader/file-system-access-stream'
+import { reportDownloadError } from './downloader/lifecycle'
 import {
   consumeStream,
   resolveStreamSource,
@@ -22,6 +23,8 @@ import type {
 } from './types'
 
 export type { DownloadStreamSource, SaveStreamOptions } from './types'
+
+const STREAM_BUFFER_BLOCK_BYTES = 64 * 1024
 
 function withoutStreamCallbacks(options: DownloadOptions): DownloadOptions {
   const saveOptions = { ...options }
@@ -60,6 +63,10 @@ async function createBufferedBlob(
 
   const chunks: BlobPart[] = []
   let bufferedBytes = 0
+  const buffer: { block: Uint8Array<ArrayBuffer> | null; offset: number } = {
+    block: null,
+    offset: 0,
+  }
   await consumeStream(
     readableStream,
     downloadOptions,
@@ -68,10 +75,35 @@ async function createBufferedBlob(
       if (bufferedBytes + chunk.byteLength > maxBufferBytes) {
         throw createBufferLimitError(maxBufferBytes)
       }
-      bufferedBytes += chunk.byteLength
-      chunks.push(new Uint8Array(chunk))
+      // Coalesce small chunks so retained objects are bounded by byte capacity.
+      let chunkOffset = 0
+      while (chunkOffset < chunk.byteLength) {
+        buffer.block ??= new Uint8Array(
+          Math.min(STREAM_BUFFER_BLOCK_BYTES, maxBufferBytes - bufferedBytes),
+        )
+        const block = buffer.block
+        const copyBytes = Math.min(
+          block.byteLength - buffer.offset,
+          chunk.byteLength - chunkOffset,
+        )
+        block.set(
+          chunk.subarray(chunkOffset, chunkOffset + copyBytes),
+          buffer.offset,
+        )
+        bufferedBytes += copyBytes
+        chunkOffset += copyBytes
+        buffer.offset += copyBytes
+        if (buffer.offset === block.byteLength) {
+          chunks.push(block)
+          buffer.block = null
+          buffer.offset = 0
+        }
+      }
     },
   )
+  if (buffer.block) {
+    chunks.push(buffer.block.subarray(0, buffer.offset))
+  }
   return new Blob(chunks, { type: resolvedSource.mimeType })
 }
 
@@ -96,24 +128,14 @@ export class StreamDownloader extends FileDownloader {
     source: DownloadStreamSource,
     filename: string,
     options?: SaveStreamOptions,
-  ) {
+  ): Promise<void> {
     const mergedOptions: DownloadOptions = {
       ...DEFAULT_DOWNLOAD_OPTIONS,
       ...options,
     }
-    const resolvedSource = resolveStreamSource(source, options)
-    if (!resolvedSource) {
-      const error = new Error('Response body is not readable')
-      mergedOptions.onError?.(error)
-      throw error
-    }
-
-    mergedOptions.onStart?.()
-    mergedOptions.onPhaseChange?.('downloading')
     const { signal, cleanup } = withTimeoutSignal(mergedOptions)
     const streamOptions: SaveStreamOptions = {
       ...mergedOptions,
-      mimeType: resolvedSource.mimeType,
       timeout: 0,
       ...(signal ? { signal } : {}),
     }
@@ -121,7 +143,14 @@ export class StreamDownloader extends FileDownloader {
     let readableStream: ReadableStream<Uint8Array> | undefined
 
     try {
+      const resolvedSource = resolveStreamSource(source, options)
+      if (!resolvedSource) {
+        throw new Error('Response body is not readable')
+      }
+      streamOptions.mimeType = resolvedSource.mimeType
       readableStream = toReadableStream(resolvedSource.source)
+      streamOptions.onStart?.()
+      streamOptions.onPhaseChange?.('downloading')
       if (signal?.aborted) {
         throw createAbortError()
       }
@@ -132,39 +161,38 @@ export class StreamDownloader extends FileDownloader {
         streamOptions,
         resolvedSource.expectedBytes,
       )
-      if (saved) {
+      if (!saved) {
+        const blob = await createBufferedBlob(
+          readableStream,
+          resolvedSource,
+          streamOptions,
+          options,
+        )
+        delegatedSave = true
+        await this.saveAsync(
+          blob,
+          filename,
+          withoutStreamCallbacks(streamOptions),
+        )
         return
       }
 
-      const blob = await createBufferedBlob(
-        readableStream,
-        resolvedSource,
-        streamOptions,
-        options,
-      )
-      delegatedSave = true
-      await this.saveAsync(
-        blob,
-        filename,
-        withoutStreamCallbacks(streamOptions),
-      )
+      streamOptions.onPhaseChange?.('completed')
     } catch (error) {
       const typedError = toError(error)
       if (readableStream && !readableStream.locked) {
         readableStream.cancel(typedError).catch(() => null)
       }
       if (!delegatedSave) {
-        streamOptions.onPhaseChange?.(
-          typedError.name === 'AbortError' || signal?.aborted
-            ? 'aborted'
-            : 'error',
-        )
-        streamOptions.onError?.(typedError)
+        reportDownloadError(typedError, streamOptions)
       }
       throw typedError
     } finally {
       cleanup()
     }
+
+    // Completion observer failures reject without reporting a failed save.
+    streamOptions.onComplete?.()
   }
 }
 
@@ -187,6 +215,6 @@ export function saveStream(
   source: DownloadStreamSource,
   filename: string,
   options?: SaveStreamOptions,
-) {
+): Promise<void> {
   return streamDownloader.saveStream(source, filename, options)
 }

@@ -11,7 +11,7 @@ import type {
  *
  * Use this instance when direct access to {@link FileDownloader} methods is useful.
  */
-export const downloader = new FileDownloader()
+export const downloader: FileDownloader = new FileDownloader()
 
 /**
  * Saves a Blob or URL using an API compatible with FileSaver.js `saveAs`.
@@ -24,7 +24,7 @@ export function saveAs(
   blob: string | Blob,
   filename?: string,
   options?: DownloadOptions,
-) {
+): void {
   downloader.save(blob, filename, options)
 }
 
@@ -45,7 +45,7 @@ export function saveAsAsync(
   blob: string | Blob,
   filename?: string,
   options?: DownloadOptions,
-) {
+): Promise<void> {
   return downloader.saveAsync(blob, filename, options)
 }
 
@@ -60,7 +60,7 @@ export function saveText(
   text: string,
   filename: string,
   options?: SaveTextOptions,
-) {
+): void {
   downloader.saveText(text, filename, options)
 }
 
@@ -75,7 +75,7 @@ export function saveJSON(
   data: unknown,
   filename: string,
   options?: SaveJSONOptions,
-) {
+): void {
   downloader.saveJSON(data, filename, options)
 }
 
@@ -90,6 +90,6 @@ export function saveCanvas(
   canvas: HTMLCanvasElement,
   filename: string,
   options?: SaveCanvasOptions,
-) {
+): void {
   downloader.saveCanvas(canvas, filename, options)
 }

@@ -10,6 +10,7 @@ import { toError } from './downloader/abort'
 import { addBom, resolveFilename } from './downloader/blob'
 import { saveWithDownloadAttribute } from './downloader/dom'
 import { saveBlobWithFileSystemAccess } from './downloader/file-system-access'
+import { reportDownloadError } from './downloader/lifecycle'
 import {
   checkCors as checkRemoteCors,
   downloadRemoteUrl,
@@ -111,16 +112,10 @@ export class FileDownloader {
     blob: string | Blob,
     name?: string,
     options: DownloadOptions = {},
-  ) {
+  ): void {
     const mergedOptions = { ...this.defaultOptions, ...options }
-    const reportError = (error: unknown) => {
-      const typedError = toError(error)
-      mergedOptions.onPhaseChange?.(
-        typedError.name === 'AbortError' ? 'aborted' : 'error',
-      )
-      mergedOptions.onError?.(typedError)
-      return typedError
-    }
+    const reportError = (error: unknown) =>
+      reportDownloadError(error, mergedOptions)
     try {
       this.saveBlob(blob, name ?? '', mergedOptions)?.catch(reportError)
     } catch (error) {
@@ -135,7 +130,11 @@ export class FileDownloader {
    * @param filename - Suggested filename for the download.
    * @param options - Text MIME type and download behavior options.
    */
-  public saveText(text: string, filename: string, options?: SaveTextOptions) {
+  public saveText(
+    text: string,
+    filename: string,
+    options?: SaveTextOptions,
+  ): void {
     const mimeType = options?.mimeType || DEFAULT_TEXT_MIME
     const blob = new Blob([text], { type: mimeType })
     this.save(blob, filename, { ...options, autoBom: true })
@@ -148,7 +147,11 @@ export class FileDownloader {
    * @param filename - Suggested filename for the download.
    * @param options - JSON formatting and download behavior options.
    */
-  public saveJSON(data: unknown, filename: string, options?: SaveJSONOptions) {
+  public saveJSON(
+    data: unknown,
+    filename: string,
+    options?: SaveJSONOptions,
+  ): void {
     let text: string
     try {
       const serializedData = JSON.stringify(data, null, options?.space)
@@ -157,10 +160,7 @@ export class FileDownloader {
       }
       text = serializedData
     } catch (error) {
-      const typedError = toError(error)
-      options?.onPhaseChange?.('error')
-      options?.onError?.(typedError)
-      throw typedError
+      throw reportDownloadError(error, options ?? {})
     }
 
     const blob = new Blob([text], { type: DEFAULT_JSON_MIME })
@@ -178,18 +178,34 @@ export class FileDownloader {
     canvas: HTMLCanvasElement,
     filename: string,
     options?: SaveCanvasOptions,
-  ) {
-    canvas.toBlob(
-      blob => {
-        if (blob) {
-          this.save(blob, filename, options)
-        } else {
-          options?.onError?.(new Error('Failed to convert canvas to blob'))
-        }
-      },
-      options?.type || DEFAULT_IMAGE_TYPE,
-      options?.quality ?? DEFAULT_IMAGE_QUALITY,
-    )
+  ): void {
+    let conversionFinished = false
+    try {
+      canvas.toBlob(
+        blob => {
+          conversionFinished = true
+          if (blob) {
+            try {
+              this.save(blob, filename, options)
+            } catch {
+              // save already reported the failure; do not escape this async task.
+            }
+          } else {
+            reportDownloadError(
+              new Error('Failed to convert canvas to blob'),
+              options ?? {},
+            )
+          }
+        },
+        options?.type || DEFAULT_IMAGE_TYPE,
+        options?.quality ?? DEFAULT_IMAGE_QUALITY,
+      )
+    } catch (error) {
+      if (!conversionFinished) {
+        reportDownloadError(error, options ?? {})
+      }
+      throw error
+    }
   }
 
   /**
@@ -209,7 +225,7 @@ export class FileDownloader {
     blob: string | Blob,
     name?: string,
     options: DownloadOptions = {},
-  ) {
+  ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       let settled = false
       const rejectOnce = (error: unknown) => {
@@ -233,7 +249,7 @@ export class FileDownloader {
       }
       const wrappedOptions: DownloadOptions = {
         ...options,
-        onStart: () => invokeCallback(() => options.onStart?.()),
+        // Nonterminal callback errors must propagate to the active transport.
         onComplete: () => {
           invokeCallback(() => options.onComplete?.())
           resolveOnce()
@@ -242,10 +258,6 @@ export class FileDownloader {
           rejectOnce(error)
           invokeCallback(() => options.onError?.(error))
         },
-        onProgress: (loaded, total) =>
-          invokeCallback(() => options.onProgress?.(loaded, total)),
-        onPhaseChange: phase =>
-          invokeCallback(() => options.onPhaseChange?.(phase)),
       }
 
       try {

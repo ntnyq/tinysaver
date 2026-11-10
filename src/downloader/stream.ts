@@ -6,6 +6,7 @@ import type {
 import { createAbortError, waitWithSignal } from './abort'
 
 const DEFAULT_BINARY_MIME = 'application/octet-stream'
+const STREAM_TASK_BUDGET_MS = 8
 
 /**
  * Metadata resolved from a supported stream source.
@@ -19,6 +20,16 @@ export interface ResolvedStreamSource {
 }
 
 function getExpectedBytes(response: Response): number {
+  const contentEncoding = response.headers.get('content-encoding')
+  // Fetch decodes the body but preserves the encoded Content-Length. CORS can
+  // hide Content-Encoding, so its absence does not establish an identity body.
+  if (
+    (contentEncoding !== null &&
+      contentEncoding.trim().toLowerCase() !== 'identity') ||
+    (contentEncoding === null && response.type === 'cors')
+  ) {
+    return 0
+  }
   const expectedBytes = Number(response.headers.get('content-length'))
   return Number.isSafeInteger(expectedBytes) && expectedBytes > 0
     ? expectedBytes
@@ -36,7 +47,8 @@ export function resolveStreamSource(
   source: DownloadStreamSource,
   options?: SaveStreamOptions,
 ): ResolvedStreamSource | null {
-  if (!(source instanceof Response)) {
+  // Response constructors differ across windows, including same-origin frames.
+  if (!('body' in source && 'headers' in source)) {
     return {
       source,
       expectedBytes: 0,
@@ -87,7 +99,8 @@ export function toReadableStream(
         if (done) {
           controller.close()
         } else {
-          controller.enqueue(value)
+          // Iterators may reuse their buffer as soon as the next pull starts.
+          controller.enqueue(new Uint8Array(value))
         }
       } catch (error) {
         controller.error(error)
@@ -115,6 +128,7 @@ export async function consumeStream(
   const reader = stream.getReader()
   const signal = options.signal
   let loadedBytes = 0
+  let taskStartedAt = performance.now()
 
   const abortStream = () => {
     // A source's cancel hook can remain pending indefinitely.
@@ -146,6 +160,18 @@ export async function consumeStream(
       }
       loadedBytes += value.byteLength
       options.onProgress?.(loadedBytes, expectedBytes)
+      if (performance.now() - taskStartedAt >= STREAM_TASK_BUDGET_MS) {
+        // Ready reads and writes only yield microtasks. Periodically allow
+        // timers, user cancellation, and rendering to run as browser tasks.
+        // oxlint-disable-next-line no-await-in-loop
+        await waitWithSignal(
+          new Promise<void>(resolve => {
+            setTimeout(resolve, 0)
+          }),
+          signal,
+        )
+        taskStartedAt = performance.now()
+      }
     }
   } catch (error) {
     if (!signal?.aborted) {

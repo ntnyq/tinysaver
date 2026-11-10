@@ -115,7 +115,8 @@ export async function saveBlobWithFileSystemAccess(
     if (options.signal?.aborted) {
       throw createAbortError()
     }
-    await waitWithSignal(writable.close(), options.signal)
+    // Closing commits the file and cannot reliably be interrupted by abort().
+    await writable.close()
   } catch (error) {
     void writable.abort?.(error).catch(() => null)
     throw error

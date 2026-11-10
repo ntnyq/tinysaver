@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { StreamDownloader } from '../src/stream'
+import { StreamDownloader, type SaveStreamOptions } from '../src/stream'
 
 function createStream(): ReadableStream<Uint8Array> {
   return new ReadableStream({
@@ -44,6 +44,194 @@ describe('stream save edge cases', () => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it.each([false, true])(
+    'should preserve the completed phase when onComplete throws with picker=%s',
+    async preferFileSystemAccess => {
+      const error = new Error('Completion observer failed')
+      const onError = vi.fn()
+      const onComplete = vi.fn(() => {
+        throw error
+      })
+      const phases: string[] = []
+      setSaveFilePicker(
+        vi.fn().mockResolvedValue({
+          createWritable: async () => ({
+            write: async () => {},
+            close: async () => {},
+          }),
+        }),
+      )
+
+      await expect(
+        new StreamDownloader().saveStream(createStream(), 'stream.bin', {
+          disableClick: true,
+          preferFileSystemAccess,
+          onComplete,
+          onError,
+          onPhaseChange: phase => phases.push(phase),
+        }),
+      ).rejects.toBe(error)
+
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      expect(onError).not.toHaveBeenCalled()
+      expect(phases).toStrictEqual(['downloading', 'saving', 'completed'])
+    },
+  )
+
+  it.each([false, true])(
+    'should report a failing completed phase observer with picker=%s',
+    async preferFileSystemAccess => {
+      const error = new Error('Phase observer failed')
+      const onError = vi.fn()
+      const onComplete = vi.fn()
+      const onPhaseChange = vi
+        .fn<(phase: string) => void>()
+        .mockImplementationOnce(() => {})
+        .mockImplementationOnce(() => {})
+        .mockImplementationOnce(() => {
+          throw error
+        })
+      setSaveFilePicker(
+        vi.fn().mockResolvedValue({
+          createWritable: async () => ({
+            write: async () => {},
+            close: async () => {},
+          }),
+        }),
+      )
+
+      await expect(
+        new StreamDownloader().saveStream(createStream(), 'stream.bin', {
+          disableClick: true,
+          preferFileSystemAccess,
+          onComplete,
+          onError,
+          onPhaseChange,
+        }),
+      ).rejects.toBe(error)
+
+      expect(onComplete).not.toHaveBeenCalled()
+      expect(onError).toHaveBeenCalledExactlyOnceWith(error)
+      expect(onPhaseChange.mock.calls.map(([phase]) => phase)).toStrictEqual([
+        'downloading',
+        'saving',
+        'completed',
+        'error',
+      ])
+    },
+  )
+
+  it.each([
+    {
+      preferFileSystemAccess: false,
+      mode: 'signal',
+      options: (): SaveStreamOptions => ({
+        signal: new AbortController().signal,
+      }),
+    },
+    {
+      preferFileSystemAccess: true,
+      mode: 'signal',
+      options: (): SaveStreamOptions => ({
+        signal: new AbortController().signal,
+      }),
+    },
+    {
+      preferFileSystemAccess: false,
+      mode: 'timeout',
+      options: (): SaveStreamOptions => ({ timeout: 1_000 }),
+    },
+    {
+      preferFileSystemAccess: true,
+      mode: 'timeout',
+      options: (): SaveStreamOptions => ({ timeout: 1_000 }),
+    },
+  ])(
+    'should preserve reused iterator buffers with picker=$preferFileSystemAccess and $mode',
+    async ({ preferFileSystemAccess, options }) => {
+      const chunks: BlobPart[] = []
+      vi.spyOn(URL, 'createObjectURL').mockImplementation(blob => {
+        chunks.push(blob as Blob)
+        return 'blob:reused-buffer'
+      })
+      setSaveFilePicker(
+        vi.fn().mockResolvedValue({
+          createWritable: async () => ({
+            write: async (chunk: BlobPart) => {
+              chunks.push(chunk)
+            },
+            close: async () => {},
+          }),
+        }),
+      )
+      async function* generate(): AsyncGenerator<Uint8Array> {
+        const buffer = new Uint8Array(3).subarray(1, 2)
+        for (const value of [1, 2, 3, 4]) {
+          buffer[0] = value
+          yield buffer
+        }
+      }
+
+      await new StreamDownloader().saveStream(generate(), 'reused.bin', {
+        disableClick: true,
+        preferFileSystemAccess,
+        ...options(),
+      })
+
+      const bytes = new Uint8Array(await new Blob(chunks).arrayBuffer())
+      expect([...bytes]).toStrictEqual([1, 2, 3, 4])
+    },
+  )
+
+  it.each(['onStart', 'onPhaseChange'] as const)(
+    'should cancel the source and report a failing initial %s callback',
+    async stage => {
+      const error = new Error(`${stage} failed`)
+      const cancel = vi.fn(() => new Promise<void>(() => {}))
+      const source = new ReadableStream<Uint8Array>({ cancel })
+      const onError = vi.fn()
+      const onComplete = vi.fn()
+      const callbacks = {
+        onStart: vi.fn(),
+        onPhaseChange: vi.fn(),
+        [stage]: vi.fn(() => {
+          throw error
+        }),
+      }
+
+      await expect(
+        new StreamDownloader().saveStream(source, 'failed.bin', {
+          onComplete,
+          onError,
+          ...callbacks,
+        }),
+      ).rejects.toBe(error)
+
+      expect(cancel).toHaveBeenCalledExactlyOnceWith(error)
+      expect(onError).toHaveBeenCalledExactlyOnceWith(error)
+      expect(callbacks.onPhaseChange).toHaveBeenLastCalledWith('error')
+      expect([onComplete.mock.calls.length, source.locked]).toStrictEqual([
+        0,
+        false,
+      ])
+    },
+  )
+
+  it('should report the error phase for a response without a body', async () => {
+    const onError = vi.fn()
+    const onPhaseChange = vi.fn()
+
+    await expect(
+      new StreamDownloader().saveStream(new Response(null), 'empty.bin', {
+        onError,
+        onPhaseChange,
+      }),
+    ).rejects.toThrow('Response body is not readable')
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onPhaseChange).toHaveBeenCalledExactlyOnceWith('error')
   })
 
   it('should time out a stalled async generator without waiting for return', async () => {
@@ -241,6 +429,58 @@ describe('stream save edge cases', () => {
     expect(abort).toHaveBeenCalledTimes(1)
     expect(close).not.toHaveBeenCalled()
     expect(stream.locked).toBe(false)
+  })
+
+  it('should not close the destination when aborted after the final read', async () => {
+    const controller = new AbortController()
+    const abort = vi.fn().mockResolvedValue(undefined)
+    const close = vi.fn().mockResolvedValue(undefined)
+    const write = vi.fn().mockResolvedValue(undefined)
+    const onComplete = vi.fn()
+    const onError = vi.fn()
+    const phases: string[] = []
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        start(sourceController) {
+          sourceController.enqueue(new Uint8Array([1, 2, 3]))
+        },
+        pull(sourceController) {
+          sourceController.close()
+          // Abort after the final read settles but before saving resumes.
+          queueMicrotask(() =>
+            queueMicrotask(() => queueMicrotask(() => controller.abort())),
+          )
+        },
+      },
+      { highWaterMark: 0 },
+    )
+    setSaveFilePicker(
+      vi.fn().mockResolvedValue({
+        createWritable: async () => ({ abort, close, write }),
+      }),
+    )
+
+    await expect(
+      new StreamDownloader().saveStream(stream, 'existing.bin', {
+        onComplete,
+        onError,
+        onPhaseChange: phase => phases.push(phase),
+        preferFileSystemAccess: true,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+
+    expect(write).toHaveBeenCalledExactlyOnceWith(new Uint8Array([1, 2, 3]))
+    expect(abort).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ name: 'AbortError' }),
+    )
+    expect(phases).toStrictEqual(['downloading', 'saving', 'aborted'])
+    expect([
+      close.mock.calls.length,
+      onComplete.mock.calls.length,
+      onError.mock.calls.length,
+      stream.locked,
+    ]).toStrictEqual([0, 0, 1, false])
   })
 
   it.each([

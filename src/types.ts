@@ -35,14 +35,15 @@ export interface DownloadOptions {
    */
   disableClick?: boolean
   /**
-   * Whether to open file in new tab instead of downloading
+   * Whether to open an anchor source in a new tab instead of downloading.
+   * Does not change File System Access writes.
    *
    * @default false
    */
   openInNewTab?: boolean
   /**
    * Delay before revoking an object URL after the anchor workflow settles
-   * (in milliseconds), default to 40 seconds.
+   * (in milliseconds), default to 40 seconds. `0` schedules immediate cleanup.
    *
    * @default 40_000
    */
@@ -56,35 +57,55 @@ export interface DownloadOptions {
    * this does not guarantee a physical disk flush.
    * Navigation paths only dispatch a click, and `disableClick` skips the click
    * in anchor workflows. Later browser download failures cannot be observed.
+   * For promise-based saves, an exception from this callback rejects the promise
+   * without changing the completed phase or notifying `onError`.
+   * Callback-based saves report such exceptions through the error lifecycle.
+   * Observer errors cannot undo a save that has already completed.
    */
   onComplete?: () => void
   /**
-   * Callback function when download fails
+   * Called when the workflow or a lifecycle observer fails.
+   * Exceptions from error observers are ignored to preserve the original error.
+   * Promise-based saves do not call this for `onComplete` exceptions.
    * @param error - Caught error
    */
   onError?: (error: Error) => void
   /**
-   * Progress callback for download tracking
+   * Progress callback for cross-origin URL transfers and stream consumption.
+   * Direct Blob, text, JSON, and canvas saves do not emit byte progress.
+   * Stream totals are unknown for encoded responses and CORS responses whose
+   * `Content-Encoding` is not exposed, because reads count decoded bytes.
+   * Exceptions stop the active workflow and are reported through `onError`.
+   *
    * @param loaded - loaded bytes
    * @param total - total bytes, or `0` when the source size is unknown
    */
   onProgress?: (loaded: number, total: number) => void
   /**
-   * Callback function when download starts
+   * Called when the save workflow starts.
+   * Exceptions stop the active workflow and are reported through `onError`.
    */
   onStart?: () => void
   /**
    * Abort signal used for file target creation, writes, stream reads, and
    * remote downloads. Anchor clicks can be cancelled before dispatch.
+   * Once a File System Access writer starts `close()`, cancellation no longer
+   * interrupts saving; the workflow waits for the actual commit result.
    */
   signal?: AbortSignal
   /**
-   * Additional fetch options used when probing remote URL CORS capability
+   * Fetch options used when probing remote URL CORS capability.
+   * Headers and `credentials: 'include'` also apply to the cross-origin GET
+   * download. Other fetch options only affect the probe; anchor navigation
+   * fallbacks cannot apply custom headers.
    */
   fetchOptions?: Omit<RequestInit, 'method' | 'mode' | 'signal'>
   /**
-   * Abort remote downloads and stream reads after this timeout (milliseconds).
+   * Abort remote URL and stream workflows after this timeout (milliseconds),
+   * including stream target creation, writes, and delayed anchor clicks.
    * `0` or `undefined` disables timeout.
+   * Does not apply to direct Blob, text, JSON, or canvas saves; use `signal`.
+   * A File System Access commit already in progress is allowed to settle.
    */
   timeout?: number
   /**
@@ -96,6 +117,8 @@ export interface DownloadOptions {
   /**
    * Status callback for download lifecycle.
    * The `completed` phase follows {@link DownloadOptions.onComplete} semantics.
+   * Exceptions stop the active workflow and are reported through `onError`.
+   * An exception during `completed` cannot undo the completed save.
    * @param phase - Current phase of the download workflow.
    */
   onPhaseChange?: (phase: DownloadPhase) => void

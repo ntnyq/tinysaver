@@ -9,6 +9,132 @@ describe('promise API', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each(['onStart', 'onPhaseChange'] as const)(
+    'should stop before opening a picker when the %s callback throws',
+    async stage => {
+      const error = new Error(`${stage} failed`)
+      const write = vi.fn().mockResolvedValue(undefined)
+      const close = vi.fn().mockResolvedValue(undefined)
+      const picker = vi.fn().mockResolvedValue({
+        createWritable: async () => ({ write, close }),
+      })
+      const onError = vi.fn()
+      const onComplete = vi.fn()
+      const callbacks = {
+        onStart: vi.fn(),
+        onPhaseChange: vi.fn(),
+        [stage]: vi.fn(() => {
+          throw error
+        }),
+      }
+      Object.defineProperty(window, 'showSaveFilePicker', {
+        configurable: true,
+        value: picker,
+      })
+
+      await expect(
+        new FileDownloader().saveAsync(new Blob(['x']), 'x.txt', {
+          preferFileSystemAccess: true,
+          onComplete,
+          onError,
+          ...callbacks,
+        }),
+      ).rejects.toBe(error)
+
+      expect([
+        picker.mock.calls.length,
+        write.mock.calls.length,
+        close.mock.calls.length,
+        onComplete.mock.calls.length,
+      ]).toStrictEqual([0, 0, 0, 0])
+      expect(onError).toHaveBeenCalledExactlyOnceWith(error)
+      expect(callbacks.onPhaseChange).toHaveBeenLastCalledWith('error')
+    },
+  )
+
+  it.each([true, false])(
+    'should abort a remote transfer when its progress callback throws with lengthComputable=%s',
+    async lengthComputable => {
+      const error = new Error('progress failed')
+      const abort = vi.fn()
+      const onError = vi.fn()
+      const onComplete = vi.fn()
+      const createObjectURL = vi.spyOn(URL, 'createObjectURL')
+      const requests: MockRequest[] = []
+      class MockRequest {
+        status = 200
+        response = new Blob(['remote content'])
+        onabort: (() => void) | null = null
+        onload: (() => void) | null = null
+        onprogress: ((event: ProgressEvent) => void) | null = null
+        constructor() {
+          requests.push(this)
+        }
+        open() {}
+        send() {}
+        abort() {
+          abort()
+          this.onabort?.()
+        }
+      }
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        type: 'cors',
+      } as Response)
+      vi.stubGlobal('XMLHttpRequest', MockRequest)
+      const result = new FileDownloader()
+        .saveAsync('https://files.example/file.txt', 'file.txt', {
+          disableClick: true,
+          onComplete,
+          onError,
+          onProgress() {
+            throw error
+          },
+        })
+        .catch((error_: unknown) => error_)
+      await vi.waitFor(() => expect(requests).toHaveLength(1))
+      const request = requests[0]!
+
+      request.onprogress?.(
+        new ProgressEvent('progress', {
+          lengthComputable,
+          loaded: 1,
+          total: 2,
+        }),
+      )
+      request.onload?.()
+
+      await expect(result).resolves.toBe(error)
+      expect(abort).toHaveBeenCalledTimes(1)
+      expect(onError).toHaveBeenCalledExactlyOnceWith(error)
+      expect([
+        onComplete.mock.calls.length,
+        createObjectURL.mock.calls.length,
+      ]).toStrictEqual([0, 0])
+    },
+  )
+
+  it('should preserve the original error when error observers throw', async () => {
+    const error = new Error('start failed')
+    const onError = vi.fn(() => {
+      throw new Error('error observer failed')
+    })
+
+    await expect(
+      new FileDownloader().saveAsync(new Blob(['x']), 'x.txt', {
+        onStart() {
+          throw error
+        },
+        onPhaseChange() {
+          throw new Error('phase observer failed')
+        },
+        onError,
+      }),
+    ).rejects.toBe(error)
+
+    expect(onError).toHaveBeenCalledExactlyOnceWith(error)
+  })
+
   it('saveAsAsync should reject with async remote errors', async () => {
     const downloader = new FileDownloader()
 

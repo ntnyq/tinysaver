@@ -109,7 +109,7 @@ export function saveWithDownloadAttribute(
 
   if (isString(source)) {
     anchor.href = source
-    if (anchor.origin !== location.origin) {
+    if (anchor.protocol !== 'data:' && anchor.origin !== location.origin) {
       return downloadRemoteUrl(source, name, options).catch(() => {
         // The remote workflow already reported this lifecycle error.
       })
@@ -133,7 +133,7 @@ export function saveWithDownloadAttribute(
   const scheduleRevoke = () => {
     setTimeout(
       () => URL.revokeObjectURL(objectUrl),
-      options.revokeTimeout || DEFAULT_DOWNLOAD_OPTIONS.revokeTimeout,
+      options.revokeTimeout ?? DEFAULT_DOWNLOAD_OPTIONS.revokeTimeout,
     )
   }
 

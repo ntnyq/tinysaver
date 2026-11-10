@@ -1,6 +1,7 @@
 import type { DownloadOptions } from '../types'
 import { createAbortError, toError, withTimeoutSignal } from './abort'
 import { clickAfterDelay } from './dom'
+import { reportDownloadError } from './lifecycle'
 
 type SaveRemoteBlob = (
   blob: Blob,
@@ -68,6 +69,7 @@ export function downloadWithProgress(
   saveBlob: SaveRemoteBlob,
 ) {
   return new Promise<void>((resolve, reject) => {
+    const headers = new Headers(options.fetchOptions?.headers)
     const { signal, cleanup } = withTimeoutSignal(options)
     if (signal?.aborted) {
       cleanup()
@@ -78,6 +80,11 @@ export function downloadWithProgress(
     const request = new XMLHttpRequest()
     request.open('GET', url, true)
     request.responseType = 'blob'
+    request.withCredentials = options.fetchOptions?.credentials === 'include'
+    // oxlint-disable-next-line unicorn/no-array-for-each -- Headers is not an array.
+    headers.forEach((value, headerName) =>
+      request.setRequestHeader(headerName, value),
+    )
 
     const abortRequest = () => request.abort()
     const cleanupRequest = () => {
@@ -87,14 +94,24 @@ export function downloadWithProgress(
     signal?.addEventListener('abort', abortRequest, { once: true })
 
     request.onprogress = event => {
-      if (event.lengthComputable) {
-        options.onProgress?.(event.loaded, event.total)
+      try {
+        options.onProgress?.(
+          event.loaded,
+          event.lengthComputable ? event.total : 0,
+        )
+      } catch (error) {
+        cleanupRequest()
+        request.onload = null
+        request.onprogress = null
+        // Preserve the callback failure before abort emits an AbortError.
+        reject(toError(error))
+        request.abort()
       }
     }
 
     request.onload = () => {
       cleanupRequest()
-      if (request.status !== 200) {
+      if (request.status < 200 || request.status >= 300) {
         reject(new Error(`Failed to download: ${request.statusText}`))
         return
       }
@@ -171,12 +188,7 @@ export async function downloadRemoteUrl(
       requestOptions.onComplete?.()
     }
   } catch (error) {
-    const typedError = toError(error)
-    requestOptions.onPhaseChange?.(
-      typedError.name === 'AbortError' ? 'aborted' : 'error',
-    )
-    requestOptions.onError?.(typedError)
-    throw typedError
+    throw reportDownloadError(error, requestOptions)
   } finally {
     cleanup()
   }

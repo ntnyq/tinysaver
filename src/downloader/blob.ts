@@ -35,7 +35,8 @@ export function resolveFilename(
     return requestedName
   }
 
-  if (source instanceof Blob && 'name' in source && isString(source.name)) {
+  // Files from other windows do not share the current Blob constructor.
+  if (!isString(source) && 'name' in source && isString(source.name)) {
     return source.name
   }
 

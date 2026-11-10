@@ -21,7 +21,7 @@ configuration live at the repository root and under `.github/`.
 - `pnpm typecheck` runs strict TypeScript checks without emitting files.
 - `pnpm release:check:full` performs the complete pre-release validation set.
 
-Use the LTS Node release specified by `.node-version` and pnpm 11 as declared in
+Use the LTS Node release specified by `.node-version` and pnpm 12 as declared in
 `package.json`.
 
 ## Coding Style & Naming Conventions

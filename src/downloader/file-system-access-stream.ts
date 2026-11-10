@@ -44,13 +44,15 @@ export async function saveStreamWithFileSystemAccess(
     await consumeStream(stream, options, expectedBytes, chunk =>
       writable.write(new Uint8Array(chunk)),
     )
-    await waitWithSignal(writable.close(), options.signal)
+    if (options.signal?.aborted) {
+      throw createAbortError()
+    }
+    // Closing commits the file and cannot reliably be interrupted by abort().
+    await writable.close()
   } catch (error) {
     writable.abort?.(error).catch(() => null)
     throw error
   }
 
-  options.onPhaseChange?.('completed')
-  options.onComplete?.()
   return true
 }
